@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 37% 96%;          /* #F0F4F8 */
+    --foreground: 217 32% 17%;          /* #1C2B3A */
+    --card: 0 0% 100%;
+    --card-foreground: 217 32% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 32% 17%;
+    --primary: 214 52% 24%;             /* #1E3A5F */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 18% 92%;
+    --secondary-foreground: 214 40% 25%;
+    --muted: 210 14% 91%;
+    --muted-foreground: 215 14% 46%;
+    --accent: 210 18% 92%;
+    --accent-foreground: 217 32% 17%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 14% 88%;
+    --input: 210 14% 88%;
+    --ring: 214 52% 24%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html, body {
+    @apply text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #E8EBF0;
+    background-image:
+      radial-gradient(900px 520px at 12% 12%, rgba(200, 206, 255, 0.55) 0%, rgba(232, 235, 240, 0) 60%),
+      radial-gradient(900px 520px at 88% 18%, rgba(194, 220, 255, 0.45) 0%, rgba(232, 235, 240, 0) 62%),
+      radial-gradient(820px 520px at 70% 92%, rgba(216, 206, 255, 0.40) 0%, rgba(232, 235, 240, 0) 64%),
+      linear-gradient(180deg, #E8EBF0 0%, #E6EAF2 50%, #E8EBF0 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
