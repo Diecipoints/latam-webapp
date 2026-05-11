@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Outlet } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { RequireAuth } from '@/components/auth/RequireAuth'
+import { AuthProvider } from '@/lib/auth-context'
+import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegionPage } from '@/pages/impostazioni/RegionPage'
 import { PaesiPage } from '@/pages/impostazioni/PaesiPage'
 import { TipiCollaboratorePage } from '@/pages/impostazioni/TipiCollaboratorePage'
@@ -23,7 +26,7 @@ const impostazioniLinks = [
 function ImpostazioniLayout() {
   return (
     <div className="flex flex-col min-h-full">
-      <div className="px-5 pt-5 pb-0">
+      <div className="pb-0">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Impostazioni</h1>
         <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.07)] px-4 pt-3 pb-0">
           <nav className="flex gap-0 border-b border-slate-100">
@@ -56,24 +59,32 @@ function ImpostazioniLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/collaboratori" replace />} />
-          <Route path="/collaboratori" element={<CollaboratoriPage />} />
-          <Route path="/collaboratori/:id" element={<CollaboratoreDetailPage />} />
-          <Route path="/obiettivi" element={<ObiettiviPage />} />
-          <Route path="/obiettivi/:id" element={<ObiettivoDetailPage />} />
-          <Route path="/risultati" element={<RisultatiPage />} />
-          <Route path="/impostazioni" element={<ImpostazioniLayout />}>
-            <Route index element={<Navigate to="/impostazioni/regioni" replace />} />
-            <Route path="regioni" element={<RegionPage />} />
-            <Route path="paesi" element={<PaesiPage />} />
-            <Route path="tipi-collaboratore" element={<TipiCollaboratorePage />} />
-            <Route path="periodi" element={<PeriodPage />} />
-            <Route path="template-obiettivi" element={<TemplateObiettiviPage />} />
+      <AuthProvider>
+        <Routes>
+          {/* Public */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Protected */}
+          <Route element={<RequireAuth />}>
+            <Route element={<AppLayout />}>
+              <Route index element={<Navigate to="/collaboratori" replace />} />
+              <Route path="/collaboratori" element={<CollaboratoriPage />} />
+              <Route path="/collaboratori/:id" element={<CollaboratoreDetailPage />} />
+              <Route path="/obiettivi" element={<ObiettiviPage />} />
+              <Route path="/obiettivi/:id" element={<ObiettivoDetailPage />} />
+              <Route path="/risultati" element={<RisultatiPage />} />
+              <Route path="/impostazioni" element={<ImpostazioniLayout />}>
+                <Route index element={<Navigate to="/impostazioni/regioni" replace />} />
+                <Route path="regioni" element={<RegionPage />} />
+                <Route path="paesi" element={<PaesiPage />} />
+                <Route path="tipi-collaboratore" element={<TipiCollaboratorePage />} />
+                <Route path="periodi" element={<PeriodPage />} />
+                <Route path="template-obiettivi" element={<TemplateObiettiviPage />} />
+              </Route>
+            </Route>
           </Route>
-        </Route>
-      </Routes>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

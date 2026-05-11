@@ -1,7 +1,9 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { Users, Target, BarChart3, Settings, Building2 } from 'lucide-react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Users, Target, BarChart3, Settings, Building2, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Toaster } from 'sonner'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
 
 const navItems = [
   { to: '/collaboratori', label: 'Collaboratori', icon: Users },
@@ -11,6 +13,14 @@ const navItems = [
 ]
 
 export function AppLayout() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <div className="min-h-screen px-10 py-10">
       {/* Floating app shell — centered so the outer gradient is visible */}
@@ -52,6 +62,18 @@ export function AppLayout() {
               </NavLink>
             ))}
           </nav>
+
+          {/* User + logout */}
+          <div className="px-4 py-4 border-t border-slate-100">
+            <p className="text-[11px] text-gray-400 truncate px-2 mb-1">{user?.email}</p>
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-500 hover:bg-slate-50 hover:text-gray-800 transition-all"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              Esci
+            </button>
+          </div>
         </aside>
 
         {/* Content area — inherits shell's gray, pages render their own white cards */}
