@@ -29,8 +29,7 @@ export function ParticleCanvas() {
     const container = containerRef.current
     if (!canvas || !container) return
 
-    const ctx = canvas.getContext('2d', { alpha: false })
-    if (!ctx) return
+    const ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D
 
     let animId: number
     let particles: Particle[] = []
@@ -95,7 +94,6 @@ export function ParticleCanvas() {
     }
 
     function animate() {
-      if (!ctx) return
       ctx.fillStyle = BG_COLOR
       ctx.fillRect(0, 0, canvas!.width, canvas!.height)
 
