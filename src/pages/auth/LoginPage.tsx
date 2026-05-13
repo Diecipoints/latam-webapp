@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ParticleCanvas } from '@/components/auth/ParticleCanvas'
 
 const LoginSchema = z.object({
   email: z.string().email('Email non valida'),
@@ -43,44 +44,52 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-[0_8px_40px_rgba(15,23,42,0.14)] p-8">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shrink-0">
-            <Building2 className="h-5 w-5 text-white" />
+    <div className="min-h-screen flex">
+      {/* Left panel — particle portrait */}
+      <div className="hidden lg:block flex-1 relative" style={{ background: '#060610' }}>
+        <ParticleCanvas />
+      </div>
+
+      {/* Right panel — login form */}
+      <div className="flex-1 lg:w-[480px] lg:flex-none flex items-center justify-center p-6 bg-gray-50">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-[0_8px_40px_rgba(15,23,42,0.14)] p-8">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shrink-0">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <div className="leading-tight">
+              <p className="text-sm font-bold text-gray-900 tracking-tight">LATAM Manager</p>
+              <p className="text-[10px] text-gray-400 font-medium">HR & OKR Platform</p>
+            </div>
           </div>
-          <div className="leading-tight">
-            <p className="text-sm font-bold text-gray-900 tracking-tight">LATAM Manager</p>
-            <p className="text-[10px] text-gray-400 font-medium">HR & OKR Platform</p>
-          </div>
+
+          <h1 className="text-xl font-bold text-gray-900 mb-1">Accedi</h1>
+          <p className="text-sm text-gray-500 mb-6">Inserisci le tue credenziali per continuare.</p>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="nome@azienda.com" {...register('email')} />
+              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
+              {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+            </div>
+
+            {authError && (
+              <p className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                {authError}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Accesso in corso…' : 'Accedi'}
+            </Button>
+          </form>
         </div>
-
-        <h1 className="text-xl font-bold text-gray-900 mb-1">Accedi</h1>
-        <p className="text-sm text-gray-500 mb-6">Inserisci le tue credenziali per continuare.</p>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="nome@azienda.com" {...register('email')} />
-            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
-            {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
-          </div>
-
-          {authError && (
-            <p className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-              {authError}
-            </p>
-          )}
-
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? 'Accesso in corso…' : 'Accedi'}
-          </Button>
-        </form>
       </div>
     </div>
   )
