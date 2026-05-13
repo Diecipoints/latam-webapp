@@ -95,6 +95,7 @@ export function ParticleCanvas() {
     }
 
     function animate() {
+      if (!ctx) return
       ctx.fillStyle = BG_COLOR
       ctx.fillRect(0, 0, canvas!.width, canvas!.height)
 
