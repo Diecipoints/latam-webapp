@@ -1,4 +1,6 @@
 export type ObjectiveStatus = 'DRAFT' | 'ASSIGNED' | 'SIGNED' | 'CLOSED'
+export type CurrencyCode = 'EUR' | 'COP' | 'MXN' | 'ARS' | 'CLP' | 'DOP'
+export type ThresholdType = 'si_alcanza' | 'adicionalmente' | 'adicionalmente_mayor'
 
 export interface Database {
   public: {
@@ -31,6 +33,8 @@ export interface Database {
           CollaboratorName: string
           CollaboratorEmail: string
           CollaboratorActive: boolean
+          CuatrimestreIngresso: string | null
+          OnboardingDone: boolean
         }
         Insert: {
           CollaboratorId?: number
@@ -39,6 +43,8 @@ export interface Database {
           CollaboratorName: string
           CollaboratorEmail: string
           CollaboratorActive?: boolean
+          CuatrimestreIngresso?: string | null
+          OnboardingDone?: boolean
         }
         Update: {
           CollaboratorId?: number
@@ -47,6 +53,8 @@ export interface Database {
           CollaboratorName?: string
           CollaboratorEmail?: string
           CollaboratorActive?: boolean
+          CuatrimestreIngresso?: string | null
+          OnboardingDone?: boolean
         }
         Relationships: [
           { foreignKeyName: 'Collaborator_CountryId_fkey'; columns: ['CountryId']; referencedRelation: 'Country'; referencedColumns: ['CountryId'] },
@@ -65,40 +73,83 @@ export interface Database {
         Update: { ObjectiveTemplateId?: number; ObjectiveTemplateTitle?: string; ObjectiveTemplateBody?: string }
         Relationships: []
       }
-      Objective: {
+      ObjectivePlan: {
         Row: {
-          ObjectiveId: number
-          CollaboratorId: number
+          ObjectivePlanId: number
           PeriodId: number
+          ObjectivePlanName: string
           ObjectiveStatus: ObjectiveStatus
-          ObjectiveWordURL: string | null
-          ObjectiveSignedPdfURL: string | null
         }
         Insert: {
-          ObjectiveId?: number
-          CollaboratorId: number
+          ObjectivePlanId?: number
           PeriodId: number
+          ObjectivePlanName: string
           ObjectiveStatus: ObjectiveStatus
-          ObjectiveWordURL?: string | null
-          ObjectiveSignedPdfURL?: string | null
         }
         Update: {
-          ObjectiveId?: number
-          CollaboratorId?: number
+          ObjectivePlanId?: number
           PeriodId?: number
+          ObjectivePlanName?: string
           ObjectiveStatus?: ObjectiveStatus
-          ObjectiveWordURL?: string | null
-          ObjectiveSignedPdfURL?: string | null
         }
         Relationships: [
-          { foreignKeyName: 'Objective_CollaboratorId_fkey'; columns: ['CollaboratorId']; referencedRelation: 'Collaborator'; referencedColumns: ['CollaboratorId'] },
           { foreignKeyName: 'Objective_PeriodId_fkey'; columns: ['PeriodId']; referencedRelation: 'Period'; referencedColumns: ['PeriodId'] }
+        ]
+      }
+      ObjectivePlanCountry: {
+        Row: { ObjectivePlanCountryId: number; ObjectivePlanId: number; CountryId: number }
+        Insert: { ObjectivePlanCountryId?: number; ObjectivePlanId: number; CountryId: number }
+        Update: { ObjectivePlanCountryId?: number; ObjectivePlanId?: number; CountryId?: number }
+        Relationships: [
+          { foreignKeyName: 'ObjectivePlanCountry_ObjectivePlanId_fkey'; columns: ['ObjectivePlanId']; referencedRelation: 'ObjectivePlan'; referencedColumns: ['ObjectivePlanId'] },
+          { foreignKeyName: 'ObjectivePlanCountry_CountryId_fkey'; columns: ['CountryId']; referencedRelation: 'Country'; referencedColumns: ['CountryId'] }
+        ]
+      }
+      CollaboratorObjectivePlan: {
+        Row: { CollaboratorObjectivePlanId: number; CollaboratorId: number; ObjectivePlanId: number }
+        Insert: { CollaboratorObjectivePlanId?: number; CollaboratorId: number; ObjectivePlanId: number }
+        Update: { CollaboratorObjectivePlanId?: number; CollaboratorId?: number; ObjectivePlanId?: number }
+        Relationships: [
+          { foreignKeyName: 'CollaboratorObjectivePlan_CollaboratorId_fkey'; columns: ['CollaboratorId']; referencedRelation: 'Collaborator'; referencedColumns: ['CollaboratorId'] },
+          { foreignKeyName: 'CollaboratorObjectivePlan_ObjectivePlanId_fkey'; columns: ['ObjectivePlanId']; referencedRelation: 'ObjectivePlan'; referencedColumns: ['ObjectivePlanId'] }
+        ]
+      }
+      ObjectiveThreshold: {
+        Row: {
+          ObjectiveThresholdId: number
+          ObjectivePlanId: number
+          ObjectiveThresholdRevenueValue: number
+          ObjectiveThresholdRevenueCurrency: CurrencyCode
+          ObjectiveThresholdBonusValue: number
+          ObjectiveThresholdBonusCurrency: CurrencyCode
+          ObjectiveThresholdType: ThresholdType
+        }
+        Insert: {
+          ObjectiveThresholdId?: number
+          ObjectivePlanId: number
+          ObjectiveThresholdRevenueValue: number
+          ObjectiveThresholdRevenueCurrency: CurrencyCode
+          ObjectiveThresholdBonusValue: number
+          ObjectiveThresholdBonusCurrency: CurrencyCode
+          ObjectiveThresholdType: ThresholdType
+        }
+        Update: {
+          ObjectiveThresholdId?: number
+          ObjectivePlanId?: number
+          ObjectiveThresholdRevenueValue?: number
+          ObjectiveThresholdRevenueCurrency?: CurrencyCode
+          ObjectiveThresholdBonusValue?: number
+          ObjectiveThresholdBonusCurrency?: CurrencyCode
+          ObjectiveThresholdType?: ThresholdType
+        }
+        Relationships: [
+          { foreignKeyName: 'ObjectiveThreshold_ObjectivePlanId_fkey'; columns: ['ObjectivePlanId']; referencedRelation: 'ObjectivePlan'; referencedColumns: ['ObjectivePlanId'] }
         ]
       }
       Result: {
         Row: {
           ResultId: number
-          ObjectiveId: number
+          ObjectivePlanId: number
           ResultActualValue: number
           ResultDelta: number
           ResultAchievementPct: number
@@ -107,7 +158,7 @@ export interface Database {
         }
         Insert: {
           ResultId?: number
-          ObjectiveId: number
+          ObjectivePlanId: number
           ResultActualValue: number
           ResultDelta: number
           ResultAchievementPct: number
@@ -116,7 +167,7 @@ export interface Database {
         }
         Update: {
           ResultId?: number
-          ObjectiveId?: number
+          ObjectivePlanId?: number
           ResultActualValue?: number
           ResultDelta?: number
           ResultAchievementPct?: number
@@ -124,7 +175,7 @@ export interface Database {
           ResultPdfUrl?: string | null
         }
         Relationships: [
-          { foreignKeyName: 'Result_ObjectiveId_fkey'; columns: ['ObjectiveId']; referencedRelation: 'Objective'; referencedColumns: ['ObjectiveId'] }
+          { foreignKeyName: 'Result_ObjectiveId_fkey'; columns: ['ObjectivePlanId']; referencedRelation: 'ObjectivePlan'; referencedColumns: ['ObjectivePlanId'] }
         ]
       }
     }
@@ -132,6 +183,8 @@ export interface Database {
     Functions: { [_ in never]: never }
     Enums: {
       objective_status: ObjectiveStatus
+      currency_code: CurrencyCode
+      threshold_type: ThresholdType
     }
     CompositeTypes: { [_ in never]: never }
   }

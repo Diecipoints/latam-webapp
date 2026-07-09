@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { ObjectiveStatus } from './database.types'
+import type { ObjectiveStatus, CurrencyCode, ThresholdType } from './database.types'
 
 // ─── Region ───────────────────────────────────────────────────────────────────
 
@@ -110,15 +110,17 @@ export const collaboratorApi = {
     CollaboratorTypeId: number
     CountryId: number
     CollaboratorActive: boolean
+    CuatrimestreIngresso: string | null
+    OnboardingDone: boolean
   }>) => supabase.from('Collaborator').update(data).eq('CollaboratorId', id).select().single(),
 
   delete: async (id: number) => {
     const { count } = await supabase
-      .from('Objective')
+      .from('CollaboratorObjectivePlan')
       .select('*', { count: 'exact', head: true })
       .eq('CollaboratorId', id)
     if (count && count > 0)
-      return { data: null, error: { message: 'Impossibile eliminare: esistono obiettivi associati a questo collaboratore.' } }
+      return { data: null, error: { message: 'Impossibile eliminare: il collaboratore è assegnato a uno o più piani obiettivo.' } }
     return supabase.from('Collaborator').delete().eq('CollaboratorId', id)
   },
 }
@@ -161,15 +163,29 @@ export const objectiveTemplateApi = {
     supabase.from('ObjectiveTemplate').delete().eq('ObjectiveTemplateId', id),
 }
 
-// ─── Objective ────────────────────────────────────────────────────────────────
+// ─── ObjectivePlan ────────────────────────────────────────────────────────────
 
-export const objectiveApi = {
-  list: (filters?: { collaboratorId?: number; periodId?: number; status?: ObjectiveStatus }) => {
+interface ObjectiveThresholdInput {
+  ObjectiveThresholdRevenueValue: number
+  ObjectiveThresholdRevenueCurrency: CurrencyCode
+  ObjectiveThresholdBonusValue: number
+  ObjectiveThresholdBonusCurrency: CurrencyCode
+  ObjectiveThresholdType: ThresholdType
+}
+
+export const objectivePlanApi = {
+  list: async (filters?: { collaboratorId?: number; periodId?: number; status?: ObjectiveStatus }) => {
     let q = supabase
-      .from('Objective')
-      .select('*, Collaborator(CollaboratorName), Period(PeriodDescription, PeriodYear)')
-      .order('ObjectiveId', { ascending: false })
-    if (filters?.collaboratorId) q = q.eq('CollaboratorId', filters.collaboratorId)
+      .from('ObjectivePlan')
+      .select('*, Period(PeriodDescription, PeriodYear), ObjectivePlanCountry(CountryId, Country(CountryName)), CollaboratorObjectivePlan(CollaboratorId)')
+      .order('ObjectivePlanId', { ascending: false })
+    if (filters?.collaboratorId) {
+      const { data: assigned } = await supabase
+        .from('CollaboratorObjectivePlan')
+        .select('ObjectivePlanId')
+        .eq('CollaboratorId', filters.collaboratorId)
+      q = q.in('ObjectivePlanId', (assigned ?? []).map((a) => a.ObjectivePlanId))
+    }
     if (filters?.periodId) q = q.eq('PeriodId', filters.periodId)
     if (filters?.status) q = q.eq('ObjectiveStatus', filters.status)
     return q
@@ -177,49 +193,93 @@ export const objectiveApi = {
 
   get: (id: number) =>
     supabase
-      .from('Objective')
-      .select('*, Collaborator(CollaboratorName, CollaboratorEmail), Period(PeriodDescription, PeriodYear)')
-      .eq('ObjectiveId', id)
+      .from('ObjectivePlan')
+      .select('*, Period(PeriodDescription, PeriodYear), ObjectivePlanCountry(CountryId, Country(CountryName)), ObjectiveThreshold(*), CollaboratorObjectivePlan(CollaboratorId)')
+      .eq('ObjectivePlanId', id)
       .single(),
 
-  create: (data: {
-    CollaboratorId: number
+  create: async (data: {
     PeriodId: number
+    ObjectivePlanName: string
     ObjectiveStatus: ObjectiveStatus
-    ObjectiveWordURL?: string | null
-    ObjectiveSignedPdfURL?: string | null
-  }) => supabase.from('Objective').insert(data).select().single(),
+    CountryIds: number[]
+    Thresholds: ObjectiveThresholdInput[]
+  }) => {
+    const { CountryIds, Thresholds, ...planData } = data
+    const { data: plan, error: planError } = await supabase.from('ObjectivePlan').insert(planData).select().single()
+    if (planError || !plan) return { data: null, error: planError }
 
-  update: (id: number, data: Partial<{
-    ObjectiveStatus: ObjectiveStatus
-    ObjectiveWordURL: string | null
-    ObjectiveSignedPdfURL: string | null
-    CollaboratorId: number
+    const [{ error: countryError }, { error: thresholdError }] = await Promise.all([
+      supabase.from('ObjectivePlanCountry').insert(CountryIds.map((CountryId) => ({ ObjectivePlanId: plan.ObjectivePlanId, CountryId }))),
+      supabase.from('ObjectiveThreshold').insert(Thresholds.map((t) => ({ ObjectivePlanId: plan.ObjectivePlanId, ...t }))),
+    ])
+    if (countryError || thresholdError) return { data: null, error: countryError ?? thresholdError }
+    return { data: plan, error: null }
+  },
+
+  update: async (id: number, data: Partial<{
     PeriodId: number
-  }>) => supabase.from('Objective').update(data).eq('ObjectiveId', id).select().single(),
+    ObjectivePlanName: string
+    ObjectiveStatus: ObjectiveStatus
+    CountryIds: number[]
+    Thresholds: ObjectiveThresholdInput[]
+  }>) => {
+    const { CountryIds, Thresholds, ...planData } = data
+    const { data: plan, error: planError } = await supabase.from('ObjectivePlan').update(planData).eq('ObjectivePlanId', id).select().single()
+    if (planError) return { data: null, error: planError }
+
+    if (CountryIds) {
+      await supabase.from('ObjectivePlanCountry').delete().eq('ObjectivePlanId', id)
+      if (CountryIds.length) {
+        const { error } = await supabase.from('ObjectivePlanCountry').insert(CountryIds.map((CountryId) => ({ ObjectivePlanId: id, CountryId })))
+        if (error) return { data: null, error }
+      }
+    }
+    if (Thresholds) {
+      await supabase.from('ObjectiveThreshold').delete().eq('ObjectivePlanId', id)
+      if (Thresholds.length) {
+        const { error } = await supabase.from('ObjectiveThreshold').insert(Thresholds.map((t) => ({ ObjectivePlanId: id, ...t })))
+        if (error) return { data: null, error }
+      }
+    }
+    return { data: plan, error: null }
+  },
 
   delete: async (id: number) => {
     const { count } = await supabase
       .from('Result')
       .select('*', { count: 'exact', head: true })
-      .eq('ObjectiveId', id)
+      .eq('ObjectivePlanId', id)
     if (count && count > 0)
-      return { data: null, error: { message: 'Impossibile eliminare: esistono risultati associati a questo obiettivo.' } }
-    return supabase.from('Objective').delete().eq('ObjectiveId', id)
+      return { data: null, error: { message: 'Impossibile eliminare: esistono risultati associati a questo piano obiettivo.' } }
+    return supabase.from('ObjectivePlan').delete().eq('ObjectivePlanId', id)
   },
+}
+
+// ─── CollaboratorObjectivePlan ─────────────────────────────────────────────────
+
+export const collaboratorObjectivePlanApi = {
+  listByCollaborator: (collaboratorId: number) =>
+    supabase
+      .from('CollaboratorObjectivePlan')
+      .select('*, ObjectivePlan(ObjectivePlanId, ObjectivePlanName, ObjectivePlanCountry(CountryId, Country(CountryName)), ObjectiveThreshold(*))')
+      .eq('CollaboratorId', collaboratorId),
+
+  assign: (collaboratorId: number, objectivePlanId: number) =>
+    supabase.from('CollaboratorObjectivePlan').insert({ CollaboratorId: collaboratorId, ObjectivePlanId: objectivePlanId }).select().single(),
 }
 
 // ─── Result ───────────────────────────────────────────────────────────────────
 
 export const resultApi = {
-  list: (objectiveId: number) =>
-    supabase.from('Result').select('*').eq('ObjectiveId', objectiveId).order('ResultId'),
+  list: (objectivePlanId: number) =>
+    supabase.from('Result').select('*').eq('ObjectivePlanId', objectivePlanId).order('ResultId'),
 
   get: (id: number) =>
     supabase.from('Result').select('*').eq('ResultId', id).single(),
 
   create: (data: {
-    ObjectiveId: number
+    ObjectivePlanId: number
     ResultActualValue: number
     ResultDelta: number
     ResultAchievementPct: number

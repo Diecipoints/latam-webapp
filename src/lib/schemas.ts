@@ -19,6 +19,8 @@ export const CollaboratorSchema = z.object({
   CollaboratorTypeId: z.number({ message: 'Tipo obbligatorio' }).int().positive(),
   CountryId: z.number({ message: 'Paese obbligatorio' }).int().positive(),
   CollaboratorActive: z.boolean().default(true),
+  CuatrimestreIngresso: z.string().optional(),
+  OnboardingDone: z.boolean().optional(),
 })
 
 export const PeriodSchema = z.object({
@@ -36,17 +38,27 @@ export const ObjectiveTemplateSchema = z.object({
 })
 
 export const ObjectiveStatusEnum = z.enum(['DRAFT', 'ASSIGNED', 'SIGNED', 'CLOSED'])
+export const CurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'])
+export const ThresholdTypeEnum = z.enum(['si_alcanza', 'adicionalmente', 'adicionalmente_mayor'])
 
-export const ObjectiveSchema = z.object({
-  CollaboratorId: z.number({ message: 'Collaboratore obbligatorio' }).int().positive(),
+export const ObjectiveThresholdSchema = z.object({
+  ObjectiveThresholdRevenueValue: z.number({ message: 'Fatturato soglia obbligatorio' }).positive('Deve essere maggiore di zero'),
+  ObjectiveThresholdRevenueCurrency: CurrencyEnum,
+  ObjectiveThresholdBonusValue: z.number({ message: 'Premio obbligatorio' }).positive('Deve essere maggiore di zero'),
+  ObjectiveThresholdBonusCurrency: CurrencyEnum,
+  ObjectiveThresholdType: ThresholdTypeEnum,
+})
+
+export const ObjectivePlanSchema = z.object({
   PeriodId: z.number({ message: 'Periodo obbligatorio' }).int().positive(),
+  CountryIds: z.array(z.number().int().positive()).min(1, 'Seleziona almeno un paese'),
+  ObjectivePlanName: z.string().min(1, 'Nome piano obbligatorio'),
   ObjectiveStatus: ObjectiveStatusEnum,
-  ObjectiveWordURL: z.string().url('URL non valido').nullable().or(z.literal('')).transform(v => v === '' ? null : v),
-  ObjectiveSignedPdfURL: z.string().url('URL non valido').nullable().or(z.literal('')).transform(v => v === '' ? null : v),
+  Thresholds: z.array(ObjectiveThresholdSchema).min(1, 'Aggiungi almeno una soglia'),
 })
 
 export const ResultSchema = z.object({
-  ObjectiveId: z.number({ message: 'Obiettivo obbligatorio' }).int().positive(),
+  ObjectivePlanId: z.number({ message: 'Obiettivo obbligatorio' }).int().positive(),
   ResultActualValue: z.number({ message: 'Valore effettivo obbligatorio' }),
   ResultDelta: z.number({ message: 'Delta obbligatorio' }),
   ResultAchievementPct: z
@@ -62,5 +74,6 @@ export type CollaboratorTypeFormValues = z.infer<typeof CollaboratorTypeSchema>
 export type CollaboratorFormValues = z.infer<typeof CollaboratorSchema>
 export type PeriodFormValues = z.infer<typeof PeriodSchema>
 export type ObjectiveTemplateFormValues = z.infer<typeof ObjectiveTemplateSchema>
-export type ObjectiveFormValues = z.infer<typeof ObjectiveSchema>
+export type ObjectiveThresholdFormValues = z.infer<typeof ObjectiveThresholdSchema>
+export type ObjectivePlanFormValues = z.infer<typeof ObjectivePlanSchema>
 export type ResultFormValues = z.infer<typeof ResultSchema>

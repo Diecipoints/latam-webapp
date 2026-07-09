@@ -3,22 +3,25 @@ import { useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, FileCheck, Image, FileDown } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, Trash2, Image, FileDown } from 'lucide-react'
 
-import { objectiveApi, resultApi } from '@/lib/api'
+import { objectivePlanApi, resultApi } from '@/lib/api'
 import { ResultSchema, type ResultFormValues } from '@/lib/schemas'
 import type { Database, ObjectiveStatus } from '@/lib/database.types'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
-type Objective = Database['public']['Tables']['Objective']['Row'] & {
-  Collaborator?: { CollaboratorName: string; CollaboratorEmail: string } | null
+type ObjectivePlan = Database['public']['Tables']['ObjectivePlan']['Row'] & {
   Period?: { PeriodDescription: string; PeriodYear: number } | null
+  ObjectivePlanCountry?: { CountryId: number; Country?: { CountryName: string } | null }[]
+  ObjectiveThreshold?: Database['public']['Tables']['ObjectiveThreshold']['Row'][]
+  CollaboratorObjectivePlan?: { CollaboratorId: number }[]
 }
 type Result = Database['public']['Tables']['Result']['Row']
 
@@ -31,6 +34,12 @@ const STATUS_COLORS: Record<ObjectiveStatus, string> = {
   ASSIGNED: 'bg-blue-100 text-blue-700 border-blue-200',
   SIGNED: 'bg-green-100 text-green-700 border-green-200',
   CLOSED: 'bg-slate-100 text-slate-600 border-slate-200',
+}
+
+const THRESHOLD_TYPE_LABELS = {
+  si_alcanza: 'Si alcanza',
+  adicionalmente: 'Adicionalmente',
+  adicionalmente_mayor: 'Adicionalmente (>)',
 }
 
 function achievementBadge(pct: number) {
@@ -47,21 +56,21 @@ function achievementBadge(pct: number) {
 interface ResultDialogProps {
   open: boolean
   item: Result | null
-  objectiveId: number
+  objectivePlanId: number
   onClose: () => void
   onSuccess: () => void
 }
 
-function ResultDialog({ open, item, objectiveId, onClose, onSuccess }: ResultDialogProps) {
+function ResultDialog({ open, item, objectivePlanId, onClose, onSuccess }: ResultDialogProps) {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ResultFormValues>({
     resolver: zodResolver(ResultSchema),
-    defaultValues: { ObjectiveId: objectiveId, ResultActualValue: 0, ResultDelta: 0, ResultAchievementPct: 0, ResultQlikImageUrl: null, ResultPdfUrl: null },
+    defaultValues: { ObjectivePlanId: objectivePlanId, ResultActualValue: 0, ResultDelta: 0, ResultAchievementPct: 0, ResultQlikImageUrl: null, ResultPdfUrl: null },
   })
 
   useEffect(() => {
     if (open) {
       reset({
-        ObjectiveId: objectiveId,
+        ObjectivePlanId: objectivePlanId,
         ResultActualValue: item?.ResultActualValue ?? 0,
         ResultDelta: item?.ResultDelta ?? 0,
         ResultAchievementPct: item?.ResultAchievementPct ?? 0,
@@ -69,7 +78,7 @@ function ResultDialog({ open, item, objectiveId, onClose, onSuccess }: ResultDia
         ResultPdfUrl: item?.ResultPdfUrl ?? null,
       })
     }
-  }, [open, item, objectiveId, reset])
+  }, [open, item, objectivePlanId, reset])
 
   async function onSubmit(values: ResultFormValues) {
     const payload = { ...values, ResultQlikImageUrl: values.ResultQlikImageUrl || null, ResultPdfUrl: values.ResultPdfUrl || null }
@@ -126,8 +135,8 @@ function ResultDialog({ open, item, objectiveId, onClose, onSuccess }: ResultDia
 
 export function ObiettivoDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const objectiveId = Number(id)
-  const [objective, setObjective] = useState<Objective | null>(null)
+  const objectivePlanId = Number(id)
+  const [objective, setObjective] = useState<ObjectivePlan | null>(null)
   const [results, setResults] = useState<Result[]>([])
   const [loadingObj, setLoadingObj] = useState(true)
   const [loadingRes, setLoadingRes] = useState(true)
@@ -137,22 +146,22 @@ export function ObiettivoDetailPage() {
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    objectiveApi.get(objectiveId).then(({ data, error }) => {
+    objectivePlanApi.get(objectivePlanId).then(({ data, error }) => {
       if (error) toast.error(error.message)
-      else setObjective(data as Objective)
+      else setObjective(data as ObjectivePlan)
       setLoadingObj(false)
     })
-  }, [objectiveId])
+  }, [objectivePlanId])
 
   async function loadResults() {
     setLoadingRes(true)
-    const { data, error } = await resultApi.list(objectiveId)
+    const { data, error } = await resultApi.list(objectivePlanId)
     if (error) toast.error(error.message)
     else setResults(data ?? [])
     setLoadingRes(false)
   }
 
-  useEffect(() => { loadResults() }, [objectiveId])
+  useEffect(() => { loadResults() }, [objectivePlanId])
 
   async function handleDeleteResult() {
     if (!deleteResult) return
@@ -197,15 +206,14 @@ export function ObiettivoDetailPage() {
         <Button variant="outline" size="sm" onClick={() => window.history.back()}>
           <ArrowLeft className="h-4 w-4" /> Indietro
         </Button>
-        <h1 className="text-2xl font-bold text-gray-900">Dettaglio Obiettivo</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{objective.ObjectivePlanName}</h1>
       </div>
 
       <div className="bg-white rounded-2xl shadow-md p-5">
         <div className="grid grid-cols-2 gap-5 text-sm">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Collaboratore</p>
-            <p className="font-medium text-gray-900">{objective.Collaborator?.CollaboratorName ?? '-'}</p>
-            <p className="text-gray-500">{objective.Collaborator?.CollaboratorEmail}</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Assegnati</p>
+            <p className="font-medium text-gray-900">{objective.CollaboratorObjectivePlan?.length ?? 0} collaboratori</p>
           </div>
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Periodo</p>
@@ -218,16 +226,41 @@ export function ObiettivoDetailPage() {
             </span>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Documenti</p>
-            <div className="flex gap-3">
-              {objective.ObjectiveWordURL
-                ? <a href={objective.ObjectiveWordURL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium"><FileText className="h-3.5 w-3.5" /> Word</a>
-                : <span className="text-xs text-gray-400">Nessun Word</span>}
-              {objective.ObjectiveSignedPdfURL
-                ? <a href={objective.ObjectiveSignedPdfURL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-green-600 hover:underline font-medium"><FileCheck className="h-3.5 w-3.5" /> PDF Firmato</a>
-                : <span className="text-xs text-gray-400">Nessun PDF</span>}
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Paesi coperti</p>
+            <div className="flex flex-wrap gap-1.5">
+              {objective.ObjectivePlanCountry?.length
+                ? objective.ObjectivePlanCountry.map((c) => <Badge key={c.CountryId} variant="secondary">{c.Country?.CountryName}</Badge>)
+                : <span className="text-xs text-gray-400">Nessun paese</span>}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Soglie</h2>
+        <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+          {objective.ObjectiveThreshold?.length ? (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <tr>
+                  <th className="text-left px-4 py-2.5">Tipo</th>
+                  <th className="text-right px-4 py-2.5">Fatturato soglia</th>
+                  <th className="text-right px-4 py-2.5">Premio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {objective.ObjectiveThreshold.map((t) => (
+                  <tr key={t.ObjectiveThresholdId} className="border-t border-gray-100">
+                    <td className="px-4 py-2.5">{THRESHOLD_TYPE_LABELS[t.ObjectiveThresholdType]}</td>
+                    <td className="px-4 py-2.5 text-right">{t.ObjectiveThresholdRevenueValue.toLocaleString()} {t.ObjectiveThresholdRevenueCurrency}</td>
+                    <td className="px-4 py-2.5 text-right">{t.ObjectiveThresholdBonusValue.toLocaleString()} {t.ObjectiveThresholdBonusCurrency}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="p-4 text-sm text-gray-400">Nessuna soglia definita.</p>
+          )}
         </div>
       </div>
 
@@ -248,7 +281,7 @@ export function ObiettivoDetailPage() {
         </div>
       </div>
 
-      <ResultDialog open={dialogOpen} item={editResult} objectiveId={objectiveId} onClose={() => setDialogOpen(false)} onSuccess={loadResults} />
+      <ResultDialog open={dialogOpen} item={editResult} objectivePlanId={objectivePlanId} onClose={() => setDialogOpen(false)} onSuccess={loadResults} />
 
       <AlertDialog open={!!deleteResult} onOpenChange={(v) => { if (!v) setDeleteResult(null) }}>
         <AlertDialogContent>

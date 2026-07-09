@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowLeft, Target } from 'lucide-react'
 
-import { collaboratorApi, objectiveApi } from '@/lib/api'
+import { collaboratorApi, objectivePlanApi } from '@/lib/api'
 import type { Database, ObjectiveStatus } from '@/lib/database.types'
 
 import { Button } from '@/components/ui/button'
@@ -14,8 +14,7 @@ type Collaborator = Database['public']['Tables']['Collaborator']['Row'] & {
   Country?: { CountryName: string; RegionId: number; Region?: { RegionName: string } | null } | null
   CollaboratorType?: { CollaboratorTypeName: string } | null
 }
-type Objective = Database['public']['Tables']['Objective']['Row'] & {
-  Collaborator?: { CollaboratorName: string } | null
+type ObjectivePlan = Database['public']['Tables']['ObjectivePlan']['Row'] & {
   Period?: { PeriodDescription: string; PeriodYear: number } | null
 }
 
@@ -30,7 +29,7 @@ export function CollaboratoreDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [collaborator, setCollaborator] = useState<Collaborator | null>(null)
-  const [objectives, setObjectives] = useState<Objective[]>([])
+  const [objectives, setObjectives] = useState<ObjectivePlan[]>([])
   const [loading, setLoading] = useState(true)
   const [objLoading, setObjLoading] = useState(true)
 
@@ -39,19 +38,20 @@ export function CollaboratoreDetailPage() {
       if (!id) return
       const [{ data, error }, { data: objData, error: objErr }] = await Promise.all([
         collaboratorApi.get(Number(id)),
-        objectiveApi.list({ collaboratorId: Number(id) }),
+        objectivePlanApi.list({ collaboratorId: Number(id) }),
       ])
       if (error) { toast.error(error.message); navigate('/collaboratori'); return }
       setCollaborator(data as Collaborator)
       setLoading(false)
       if (objErr) toast.error(objErr.message)
-      else setObjectives((objData ?? []) as Objective[])
+      else setObjectives((objData ?? []) as ObjectivePlan[])
       setObjLoading(false)
     }
     run()
   }, [id, navigate])
 
-  const objectiveColumns: Column<Objective>[] = [
+  const objectiveColumns: Column<ObjectivePlan>[] = [
+    { header: 'Nome piano', cell: (r) => r.ObjectivePlanName },
     { header: 'Periodo', cell: (r) => r.Period ? `${r.Period.PeriodDescription} (${r.Period.PeriodYear})` : '—' },
     {
       header: 'Stato',
@@ -64,7 +64,7 @@ export function CollaboratoreDetailPage() {
       header: '', className: 'w-24 text-right',
       cell: (r) => (
         <Button variant="ghost" size="sm" asChild>
-          <Link to={`/obiettivi/${r.ObjectiveId}`}><Target className="h-4 w-4 mr-1" /> Dettaglio</Link>
+          <Link to={`/obiettivi/${r.ObjectivePlanId}`}><Target className="h-4 w-4 mr-1" /> Dettaglio</Link>
         </Button>
       ),
     },
@@ -105,6 +105,25 @@ export function CollaboratoreDetailPage() {
           <div>
             <dt className="text-gray-500">Regione</dt>
             <dd className="font-medium text-gray-900 mt-0.5">{collaborator.Country?.Region?.RegionName ?? '—'}</dd>
+          </div>
+          <div className="col-span-2">
+            <dt className="text-gray-500">Onboarding Drive</dt>
+            <dd className="flex items-center gap-3 mt-0.5">
+              {collaborator.OnboardingDone
+                ? <span className="font-medium text-green-600">Completato</span>
+                : <span className="font-medium text-gray-400">Non avviato</span>
+              }
+              {collaborator.OnboardingDone && (
+                <Button variant="outline" size="sm" onClick={async () => {
+                  const { error } = await collaboratorApi.update(collaborator.CollaboratorId, { OnboardingDone: false })
+                  if (error) { toast.error(error.message); return }
+                  setCollaborator({ ...collaborator, OnboardingDone: false })
+                  toast.success('Onboarding riabilitato')
+                }}>
+                  Riabilita
+                </Button>
+              )}
+            </dd>
           </div>
         </dl>
       </div>

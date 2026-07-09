@@ -3,21 +3,19 @@ import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Eye, Image, FileDown } from 'lucide-react'
 
-import { objectiveApi, resultApi } from '@/lib/api'
+import { objectivePlanApi, resultApi } from '@/lib/api'
 import type { Database, ObjectiveStatus } from '@/lib/database.types'
 
 import { Button } from '@/components/ui/button'
 import { DataTable, type Column } from '@/components/ui/data-table'
 
-type Objective = Database['public']['Tables']['Objective']['Row'] & {
-  Collaborator?: { CollaboratorName: string } | null
+type ObjectivePlan = Database['public']['Tables']['ObjectivePlan']['Row'] & {
   Period?: { PeriodDescription: string; PeriodYear: number } | null
 }
 type Result = Database['public']['Tables']['Result']['Row']
 
 type ResultRow = Result & {
   objectiveName: string
-  collaboratorName: string
   periodLabel: string
   status: ObjectiveStatus
   objectiveId: number
@@ -52,19 +50,18 @@ export function RisultatiPage() {
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const { data: objectives, error: objErr } = await objectiveApi.list()
+      const { data: objectives, error: objErr } = await objectivePlanApi.list()
       if (objErr) { toast.error(objErr.message); setLoading(false); return }
 
-      const allObjectives = (objectives ?? []) as Objective[]
+      const allObjectives = (objectives ?? []) as ObjectivePlan[]
       const resultPromises = allObjectives.map((obj) =>
-        resultApi.list(obj.ObjectiveId).then(({ data }) =>
+        resultApi.list(obj.ObjectivePlanId).then(({ data }) =>
           (data ?? []).map((r) => ({
             ...r,
-            objectiveName: `${obj.Collaborator?.CollaboratorName ?? '?'} – ${obj.Period?.PeriodDescription ?? '?'}`,
-            collaboratorName: obj.Collaborator?.CollaboratorName ?? '-',
+            objectiveName: obj.ObjectivePlanName,
             periodLabel: obj.Period ? `${obj.Period.PeriodDescription} (${obj.Period.PeriodYear})` : '-',
             status: obj.ObjectiveStatus,
-            objectiveId: obj.ObjectiveId,
+            objectiveId: obj.ObjectivePlanId,
           } satisfies ResultRow))
         )
       )
@@ -77,7 +74,7 @@ export function RisultatiPage() {
   }, [])
 
   const columns: Column<ResultRow>[] = [
-    { header: 'Collaboratore', accessorKey: 'collaboratorName' },
+    { header: 'Nome piano', accessorKey: 'objectiveName' },
     { header: 'Periodo', accessorKey: 'periodLabel' },
     {
       header: 'Stato Obiettivo',
