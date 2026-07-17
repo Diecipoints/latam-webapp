@@ -1,6 +1,7 @@
 export type ObjectiveStatus = 'DRAFT' | 'ASSIGNED' | 'SIGNED' | 'CLOSED'
 export type CurrencyCode = 'EUR' | 'COP' | 'MXN' | 'ARS' | 'CLP' | 'DOP'
 export type ThresholdType = 'si_alcanza' | 'adicionalmente' | 'adicionalmente_mayor'
+export type ObjectivePlanScope = 'individual' | 'filiale'
 
 export interface Database {
   public: {
@@ -79,18 +80,21 @@ export interface Database {
           PeriodId: number
           ObjectivePlanName: string
           ObjectiveStatus: ObjectiveStatus
+          ObjectivePlanScope: ObjectivePlanScope
         }
         Insert: {
           ObjectivePlanId?: number
           PeriodId: number
           ObjectivePlanName: string
           ObjectiveStatus: ObjectiveStatus
+          ObjectivePlanScope?: ObjectivePlanScope
         }
         Update: {
           ObjectivePlanId?: number
           PeriodId?: number
           ObjectivePlanName?: string
           ObjectiveStatus?: ObjectiveStatus
+          ObjectivePlanScope?: ObjectivePlanScope
         }
         Relationships: [
           { foreignKeyName: 'Objective_PeriodId_fkey'; columns: ['PeriodId']; referencedRelation: 'Period'; referencedColumns: ['PeriodId'] }
@@ -185,6 +189,7 @@ export interface Database {
       objective_status: ObjectiveStatus
       currency_code: CurrencyCode
       threshold_type: ThresholdType
+      objective_plan_scope: ObjectivePlanScope
     }
     CompositeTypes: { [_ in never]: never }
   }

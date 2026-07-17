@@ -40,6 +40,7 @@ export const ObjectiveTemplateSchema = z.object({
 export const ObjectiveStatusEnum = z.enum(['DRAFT', 'ASSIGNED', 'SIGNED', 'CLOSED'])
 export const CurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'])
 export const ThresholdTypeEnum = z.enum(['si_alcanza', 'adicionalmente', 'adicionalmente_mayor'])
+export const ObjectivePlanScopeEnum = z.enum(['individual', 'filiale'])
 
 export const ObjectiveThresholdSchema = z.object({
   ObjectiveThresholdRevenueValue: z.number({ message: 'Fatturato soglia obbligatorio' }).positive('Deve essere maggiore di zero'),
@@ -54,6 +55,7 @@ export const ObjectivePlanSchema = z.object({
   CountryIds: z.array(z.number().int().positive()).min(1, 'Seleziona almeno un paese'),
   ObjectivePlanName: z.string().min(1, 'Nome piano obbligatorio'),
   ObjectiveStatus: ObjectiveStatusEnum,
+  ObjectivePlanScope: ObjectivePlanScopeEnum.default('individual'),
   Thresholds: z.array(ObjectiveThresholdSchema).min(1, 'Aggiungi almeno una soglia'),
 })
 
