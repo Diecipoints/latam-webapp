@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { ObjectiveStatus, CurrencyCode, ThresholdType } from './database.types'
+import type { ObjectiveStatus, ObjectivePlanScope, CurrencyCode, ThresholdType } from './database.types'
 
 // ─── Region ───────────────────────────────────────────────────────────────────
 
@@ -202,6 +202,7 @@ export const objectivePlanApi = {
     PeriodId: number
     ObjectivePlanName: string
     ObjectiveStatus: ObjectiveStatus
+    ObjectivePlanScope?: ObjectivePlanScope
     CountryIds: number[]
     Thresholds: ObjectiveThresholdInput[]
   }) => {
@@ -221,6 +222,7 @@ export const objectivePlanApi = {
     PeriodId: number
     ObjectivePlanName: string
     ObjectiveStatus: ObjectiveStatus
+    ObjectivePlanScope?: ObjectivePlanScope
     CountryIds: number[]
     Thresholds: ObjectiveThresholdInput[]
   }>) => {
