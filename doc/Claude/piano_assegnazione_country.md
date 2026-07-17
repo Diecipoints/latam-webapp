@@ -38,14 +38,64 @@ Applicare manualmente via Supabase SQL Editor, stesso pattern già usato per `mi
 
 ## Step 2 — Nuova pagina "Country" (mirror di CollaboratoriPage)
 
-- Nuova pagina, es. `src/pages/country/CountryPage.tsx`, con lista dei `Country` e bottone **"Assegna Obiettivo"** per riga — stesso pattern UI di `CollaboratoriPage.tsx`.
-- Click su "Assegna Obiettivo" → stesso form/flow già esistente per i piani individuali, ma:
-  - crea (o seleziona) un `ObjectivePlan` con `ObjectivePlanScope = 'filiale'`
-  - lo collega al country scelto via `ObjectivePlanCountry` (tabella già esistente, nessuna modifica necessaria)
-  - le soglie (`ObjectiveThreshold`) si inseriscono con lo stesso form usato oggi per i piani individuali
-- Route: `/country` (lista) + eventuale `/country/:id` (dettaglio), simmetrica a `/collaboratori` e `/collaboratori/:id`.
-- Aggiungere voce di navigazione in `AppLayout.tsx`.
-- Valutare se questa pagina va distinta da `/impostazioni/paesi` (quella resta CRUD anagrafica Country; questa nuova è vista operativa per l'assegnazione piani, come `CollaboratoriPage` non è in Impostazioni).
+**IMPORTANTE — correzione post-ricognizione (vedi sezione "Nota su ObjectivePlanCountry" più sotto):**
+`ObjectivePlanCountry` è già in uso oggi per i piani `individual` con un significato legittimo e diverso ("paesi il cui fatturato aggregato copre il collaboratore" — utile perché Qlik stesso aggrega paesi piccoli, es. centro America). Non va toccato quel comportamento. La nuova pagina Country riusa la stessa tabella ma con significato diverso per i piani `filiale` (vedi sotto).
+
+**Stato avanzamento (aggiornato durante l'implementazione):**
+- ✅ Migrazione `ObjectivePlanScope` applicata su Supabase, tipi/schemas aggiornati (commit `d8b354d`)
+- ✅ `objectivePlanApi.create`/`update`/`list` aggiornate per `ObjectivePlanScope` (commit `8b5bdb0`)
+- ✅ `ObiettiviPage.tsx` filtra di default `scope: 'individual'` (commit `4ad3381`)
+- ✅ `ObjectivePlanDialog` estratto in componente condiviso (`src/pages/obiettivi/ObjectivePlanDialog.tsx`, commit `d63d49b`)
+- ✅ Prop `scope`/`lockedCountryId` aggiunte a `ObjectivePlanDialog` (commit `c1a853e`) — quando `lockedCountryId` è presente, "Paesi coperti" mostra etichetta statica invece della checklist, e `CountryIds` viene forzato a `[lockedCountryId]`
+- ⏳ **Prossimo step**: creare `CountryPage.tsx` (struttura concordata sotto), poi route + voce sidebar
+
+### Struttura concordata per `CountryPage.tsx`
+
+**Scope ampliato rispetto all'idea iniziale**: non solo "lista + bottone Assegna" ma anche **modifica ed eliminazione inline** dei piani filiale esistenti — altrimenti un piano creato con errore (soglia/paese sbagliati) sarebbe impossibile da correggere da UI, dato che `ObiettiviPage.tsx` ora filtra solo `individual` e i piani `filiale` non compaiono più da nessun'altra parte.
+
+**Data fetching:**
+- `useEffect` al mount: `Promise.all([countryApi.list(), periodApi.list()])` → `countries`, `periods`
+- `load()`: `objectivePlanApi.list({ scope: 'filiale' })` → `plans` (tipo `ObjectivePlan` già esportato da `ObjectivePlanDialog.tsx`)
+- Raggruppamento per country calcolato al volo (nessuno state separato): `plans.reduce` → `Map<CountryId, ObjectivePlan[]>` (ogni piano filiale ha tipicamente una sola riga in `ObjectivePlanCountry`, si prende `plan.ObjectivePlanCountry?.[0]?.CountryId`)
+
+**Colonne `DataTable<Country>`:**
+1. Paese — `CountryName`
+2. Regione — `Region?.RegionName` (già incluso da `countryApi.list()`, nessuna modifica alla query)
+3. Piani Filiale — per ogni piano di quel country: Badge col nome + `StatusPill` (riusati da `ObjectivePlanDialog.tsx`) + due icon-button piccoli (Pencil/Trash2) per modifica/eliminazione inline; fallback "Nessun piano filiale" in grigio se l'array è vuoto
+4. Azioni — un solo bottone "Assegna Obiettivo" (icona Target, stesso stile di `CollaboratoriPage`) che apre il dialog in modalità creazione per quel country
+
+Nessun filtro (regione/stato) in questa prima versione — pochi country, lista corta, aggiungibile dopo se serve.
+
+**Wiring del dialog** — un solo stato condiviso tra creazione e modifica:
+```ts
+const [dialogState, setDialogState] = useState<{ item: ObjectivePlan | null; countryId: number } | null>(null)
+```
+- Crea (bottone riga country): `setDialogState({ item: null, countryId: row.CountryId })`
+- Modifica (icona Pencil su un piano): `setDialogState({ item: plan, countryId: plan.ObjectivePlanCountry?.[0]?.CountryId ?? row.CountryId })`
+
+Render:
+```tsx
+<ObjectivePlanDialog
+  open={!!dialogState}
+  item={dialogState?.item ?? null}
+  periods={periods}
+  countries={countries}
+  scope="filiale"
+  lockedCountryId={dialogState?.countryId}
+  onClose={() => setDialogState(null)}
+  onSuccess={load}
+/>
+```
+
+**Eliminazione**: stesso pattern di `ObiettiviPage.tsx` — `deleteItem: ObjectivePlan | null` + `AlertDialog` di conferma + `objectivePlanApi.delete(id)` (già bloccato lato API se esistono `Result` associati).
+
+**Non incluso in questo file (deferred)**:
+- Nessuna route/voce sidebar (passo successivo separato)
+- Nessuna pagina di dettaglio `/country/:id`
+- Nessun filtro/ricerca
+- Nessun bottone "Duplica" (Step 3 del piano generale)
+
+Dopo la creazione del file: verifica `tsc --noEmit`, controllo visivo in dev, poi commit isolato. Solo dopo si procede con route (`App.tsx`) e voce sidebar (`AppLayout.tsx`) come passo separato successivo.
 
 ---
 
@@ -82,4 +132,15 @@ ObjectiveThreshold       ObjectivePlanId FK, soglie ripetibili     ← già esis
 Country / Period         invariati
 ```
 
-Regola di dominio: un `ObjectivePlan` è **o** individuale **o** filiale, mai entrambi — collegato in via esclusiva a `CollaboratorObjectivePlan` oppure `ObjectivePlanCountry`, mai a entrambe.
+## Regola di dominio (corretta dopo ricognizione codice — vedi commit successivi allo Step 1)
+
+~~Un `ObjectivePlan` è o individuale o filiale, mai entrambi — collegato in via esclusiva a `CollaboratorObjectivePlan` oppure `ObjectivePlanCountry`, mai a entrambe.~~ ← **versione originale, errata**
+
+**Versione corretta:**
+- `ObjectivePlanCountry` si usa per **entrambi** gli scope, ma con significato diverso:
+  - se `ObjectivePlanScope = 'individual'`: rappresenta i paesi il cui fatturato aggregato conta per il collaboratore assegnato (multi-select organizzativo, riflette come Qlik aggrega i paesi piccoli — es. centro America). Comportamento invariato, nessuna modifica.
+  - se `ObjectivePlanScope = 'filiale'`: rappresenta il country a cui il premio collettivo è assegnato (tipicamente una sola riga).
+- L'esclusività reale è su `CollaboratorObjectivePlan`:
+  - un piano `filiale` **non ha mai** righe in `CollaboratorObjectivePlan`
+  - un piano `individual` **ha sempre** almeno una riga in `CollaboratorObjectivePlan`
+- Non ricategorizzare piani individuali esistenti che coprono più country (es. piani "Guatemala + República Dominicana", "México" già in Supabase) — sono piani individuali legittimi con più paesi, non piani filiale mascherati.
