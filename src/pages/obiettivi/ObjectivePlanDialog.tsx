@@ -6,7 +6,7 @@ import { Plus, Trash2 } from 'lucide-react'
 
 import { objectivePlanApi } from '@/lib/api'
 import { ObjectivePlanSchema, type ObjectivePlanFormValues } from '@/lib/schemas'
-import type { Database, ObjectiveStatus } from '@/lib/database.types'
+import type { Database, ObjectiveStatus, ObjectivePlanScope } from '@/lib/database.types'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -62,9 +62,10 @@ const DEFAULT_THRESHOLD_ROWS = 4
 export interface ObjectivePlanDialogProps {
   open: boolean; item: ObjectivePlan | null; periods: Period[]; countries: Country[]
   onClose: () => void; onSuccess: () => void
+  scope?: ObjectivePlanScope; lockedCountryId?: number
 }
 
-export function ObjectivePlanDialog({ open, item, periods, countries, onClose, onSuccess }: ObjectivePlanDialogProps) {
+export function ObjectivePlanDialog({ open, item, periods, countries, onClose, onSuccess, scope = 'individual', lockedCountryId }: ObjectivePlanDialogProps) {
   const manuallyEditedRef = useRef(false)
   const { register, handleSubmit, reset, control, setValue, formState: { errors, isSubmitting } } = useForm<ObjectivePlanFormValues>({
     resolver: zodResolver(ObjectivePlanSchema),
@@ -85,9 +86,10 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
     manuallyEditedRef.current = !!item
     reset({
       PeriodId: item?.PeriodId ?? (undefined as unknown as number),
-      CountryIds: item?.ObjectivePlanCountry?.map((c) => c.CountryId) ?? [],
+      CountryIds: lockedCountryId ? [lockedCountryId] : (item?.ObjectivePlanCountry?.map((c) => c.CountryId) ?? []),
       ObjectivePlanName: item?.ObjectivePlanName ?? '',
       ObjectiveStatus: item?.ObjectiveStatus ?? 'DRAFT',
+      ObjectivePlanScope: scope,
       Thresholds: Array.from({ length: DEFAULT_THRESHOLD_ROWS }, () => ({ ...emptyThreshold })),
     })
 
@@ -103,7 +105,7 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
       }))
       replace(loaded.length ? loaded : Array.from({ length: DEFAULT_THRESHOLD_ROWS }, () => ({ ...emptyThreshold })))
     })
-  }, [open, item, reset, replace])
+  }, [open, item, reset, replace, scope, lockedCountryId])
 
   useEffect(() => {
     if (!open || manuallyEditedRef.current) return
@@ -138,29 +140,35 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
 
           <div className="space-y-1.5">
             <Label>Paesi coperti</Label>
-            <Controller control={control} name="CountryIds" render={({ field }) => (
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2 space-y-1">
-                {countries.map((c) => {
-                  const checked = field.value?.includes(c.CountryId) ?? false
-                  return (
-                    <label key={c.CountryId} className="flex items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => {
-                          const next = e.target.checked
-                            ? [...(field.value ?? []), c.CountryId]
-                            : (field.value ?? []).filter((id) => id !== c.CountryId)
-                          field.onChange(next)
-                        }}
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
-                      {c.CountryName}
-                    </label>
-                  )
-                })}
-              </div>
-            )} />
+            {lockedCountryId ? (
+              <p className="text-sm text-gray-700 rounded-lg border border-gray-200 px-3 py-2 bg-gray-50">
+                {countries.find((c) => c.CountryId === lockedCountryId)?.CountryName ?? '—'}
+              </p>
+            ) : (
+              <Controller control={control} name="CountryIds" render={({ field }) => (
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2 space-y-1">
+                  {countries.map((c) => {
+                    const checked = field.value?.includes(c.CountryId) ?? false
+                    return (
+                      <label key={c.CountryId} className="flex items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? [...(field.value ?? []), c.CountryId]
+                              : (field.value ?? []).filter((id) => id !== c.CountryId)
+                            field.onChange(next)
+                          }}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        {c.CountryName}
+                      </label>
+                    )
+                  })}
+                </div>
+              )} />
+            )}
             {errors.CountryIds && <p className="text-sm text-destructive">{errors.CountryIds.message}</p>}
           </div>
 
