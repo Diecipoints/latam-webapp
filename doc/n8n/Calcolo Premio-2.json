@@ -1,0 +1,815 @@
+{
+  "name": "Calcolo Premio",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b7190b76-ae97-4573-bbd5-e8701165a700",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -416,
+        -112
+      ],
+      "id": "fb025613-0968-4979-b2eb-0a9c51e98a4b",
+      "name": "Webhook",
+      "webhookId": "b7190b76-ae97-4573-bbd5-e8701165a700"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst collaboratorId = body.collaboratorId;\nconst periodo = body.periodo;\nconst anno = body.anno;\nconst cuatrimestre = body.cuatrimestre;\nconst collaboratoreName = body.collaboratoreName;\n\nif (!collaboratorId || !periodo || !anno || !cuatrimestre || !collaboratoreName) {\n  throw new Error('Parametri mancanti: collaboratorId, periodo, anno, cuatrimestre, collaboratoreName obbligatori');\n}\n\nreturn [{ json: { collaboratorId, periodo, anno, cuatrimestre, collaboratoreName } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        -112
+      ],
+      "id": "df9f089c-2385-470f-8284-ac837e9bb704",
+      "name": "Valida Input"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "=name = 'qlik_{{ $('Valida Input').first().json.collaboratoreName }}_{{ $('Valida Input').first().json.cuatrimestre.replace(/ /g, '_') }}.json'",
+        "limit": 1,
+        "filter": {
+          "driveId": {
+            "mode": "list",
+            "value": "My Drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "value": "1sYd-ms8cjcWaTAnG2JZOity6-IV-6ZNf",
+            "mode": "id"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        160,
+        -112
+      ],
+      "id": "fd4f6025-2cae-4915-b5f0-84389e46f921",
+      "name": "Cerca Buffer Qlik",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KrrdJFIo3SNZOEPn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "def1be45-9e6b-4748-9bde-3f27da1527aa",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        384,
+        -112
+      ],
+      "id": "5a186577-9829-4db4-b5b3-e2040b104f95",
+      "name": "Buffer trovato?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"success\": false, \"error\": \"Dati Qlik non trovati per questo collaboratore e periodo\" }",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        608,
+        -16
+      ],
+      "id": "b2dccf16-2f1a-4942-b812-f77ccdff957d",
+      "name": "Errore Buffer Non Trovato"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        608,
+        -208
+      ],
+      "id": "de349ef3-e774-4b86-b269-21303ad7c360",
+      "name": "Scarica Buffer Qlik",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KrrdJFIo3SNZOEPn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const binaryData = $input.first().binary.data;\nconst jsonStr = Buffer.from(binaryData.data, 'base64').toString('utf8').replace(/^=/, '');\nconst bufferData = JSON.parse(jsonStr);\n\nconst inputData = $('Valida Input').first().json;\n\nreturn [{ json: {\n  ...bufferData,\n  collaboratorId: inputData.collaboratorId,\n  periodo: inputData.periodo\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -208
+      ],
+      "id": "2813cae5-6fad-44b8-90cd-e65b99ca2dd1",
+      "name": "Leggi Buffer Qlik"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://koznfslwdudaydutujdl.supabase.co/rest/v1/CollaboratorObjectivePlan?select=ObjectivePlan(ObjectivePlanId,ObjectivePlanName,ObjectiveThreshold(*))&CollaboratorId=eq.' + $json.collaboratorId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_SYBAB9c6LkCzr1FTwadyzA_MfaNDAxt"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1056,
+        -208
+      ],
+      "id": "37dc7a4b-b189-4bb8-a891-096c86e49426",
+      "name": "Leggi Obiettivi da Supabase"
+    },
+    {
+      "parameters": {
+        "jsCode": "const obiettivi = $input.first().json.ObjectivePlan;\nconst buffer = $('Leggi Buffer Qlik').first().json;\n\nconst invoiced = buffer.invoiced;\nconst soglie = obiettivi.ObjectiveThreshold.sort((a, b) => a.ObjectiveThresholdRevenueValue - b.ObjectiveThresholdRevenueValue);\n\nlet premioTotale = 0;\nlet bonusCurrency = soglie[0]?.ObjectiveThresholdBonusCurrency || 'COP';\nlet dettaglio = [];\n\nfor (const soglia of soglie) {\n  const threshold = soglia.ObjectiveThresholdRevenueValue;\n  const bonus = soglia.ObjectiveThresholdBonusValue;\n  const tipo = soglia.ObjectiveThresholdType;\n\n  let raggiunta = false;\n  if (tipo === 'si_alcanza' && invoiced >= threshold) raggiunta = true;\n  if (tipo === 'adicionalmente' && invoiced >= threshold) raggiunta = true;\n  if (tipo === 'adicionalmente_mayor' && invoiced > threshold) raggiunta = true;\n\n  if (raggiunta) {\n    premioTotale += bonus;\n    dettaglio.push(`${tipo}: €${threshold} → +${bonusCurrency} ${bonus}`);\n  }\n}\n\nreturn [{ json: {\n  ...buffer,\n  pianoPremio: obiettivi.ObjectivePlanName,\n  invoiced,\n  premioTotale,\n  bonusCurrency,\n  dettaglio,\n  soglie\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -208
+      ],
+      "id": "d05ca505-bc17-4dbd-b3f7-ef17fe07eb63",
+      "name": "Calcola Premio"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "=profile_{{ $json.collaboratore }}.json",
+        "limit": 1,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2352,
+        -176
+      ],
+      "id": "d68cf40e-c8eb-49e4-9fdf-9b75fb6516cf",
+      "name": "Cerca Profile Collaboratore",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KrrdJFIo3SNZOEPn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().binary.data.data;\nconst profileData = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));\n\nlet previousData;\ntry {\n  previousData = $('Somma Premio Filiale').first().json;\n} catch (e) {\n  previousData = $('Premio Filiale Zero').first().json;\n}\n\nreturn [{ json: { ...previousData, ...profileData } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2768,
+        -176
+      ],
+      "id": "08cc5116-897e-435f-88af-339ac1d57da0",
+      "name": "Leggi Profile"
+    },
+    {
+      "parameters": {
+        "name": "=Resultado_{{ $json.collaboratore }}_{{ $json.cuatrimestre.replace(/ /g, '_') }}.pdf",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $json.resultsFolderId || '' }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3808,
+        -176
+      ],
+      "id": "becd9c74-cd89-4bfa-9b03-01ad85b69525",
+      "name": "Salva PDF Results",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KrrdJFIo3SNZOEPn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "=qlik_{{ $json.paese }}_filiale_{{ $json.cuatrimestre.replace(/ /g, '_') }}.json",
+        "limit": 1,
+        "filter": {
+          "driveId": {
+            "mode": "list",
+            "value": "My Drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "value": "1sYd-ms8cjcWaTAnG2JZOity6-IV-6ZNf",
+            "mode": "id"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1488,
+        -208
+      ],
+      "id": "af71067b-3acd-4830-9f85-578eba47270a",
+      "name": "Cerca Buffer Filiale",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KrrdJFIo3SNZOEPn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ca0ec87f-0a94-4f8f-bbb4-05b80a6590c8",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1696,
+        -208
+      ],
+      "id": "37c661a6-a27a-4722-adc0-92a47b97b8ee",
+      "name": "Buffer Filiale Trovato?"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1904,
+        -304
+      ],
+      "id": "4a2c7662-28b7-4e36-823d-a6b664d35069",
+      "name": "Scarica Buffer Filiale",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KrrdJFIo3SNZOEPn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const binaryData = $input.first().binary.data;\nconst jsonStr = Buffer.from(binaryData.data, 'base64').toString('utf8').replace(/^=/, '');\nconst bufferFiliale = JSON.parse(jsonStr);\nconst premioBase = $('Calcola Premio').first().json;\nconst buffQlik = $('Leggi Buffer Qlik').first().json;\n\nconst premioTotale = Number(premioBase.premioTotale) || 0;\n\nreturn [{ json: {\n  ...premioBase,\n  imagenFileId: buffQlik.imagenFileId || null,\n  valoreTotaleFiliale: 0,\n  premioFiliale: 0,\n  premioTotaleConFiliale: premioTotale\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2112,
+        -304
+      ],
+      "id": "47eb72e3-90f8-4cd0-9600-2b85179535cc",
+      "name": "Somma Premio Filiale"
+    },
+    {
+      "parameters": {
+        "jsCode": "const premioBase = $('Calcola Premio').first().json;\nconst buffQlik = $('Leggi Buffer Qlik').first().json;\n\nconst premioTotale = Number(premioBase.premioTotale) || 0;\n\nreturn [{ json: {\n  ...premioBase,\n  imagenFileId: buffQlik.imagenFileId || null,\n  valoreTotaleFiliale: 0,\n  premioFiliale: 0,\n  premioTotaleConFiliale: premioTotale\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        -112
+      ],
+      "id": "cbc2a567-7f44-4af0-9c92-ac1bb6206285",
+      "name": "Premio Filiale Zero"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $items(\"Cerca Profile Collaboratore\")[0].json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2576,
+        -176
+      ],
+      "id": "90255702-e75e-4e52-a22f-ac6dcab2b28e",
+      "name": "Scarica Profile Collaboratore",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KrrdJFIo3SNZOEPn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.imagenFileId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2976,
+        -176
+      ],
+      "id": "7ce63111-df39-4c5d-b25d-170425c7ff54",
+      "name": "Scarica Immagine Qlik",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KrrdJFIo3SNZOEPn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst binary = item.binary?.data;\n\nif (!binary) {\n  return [{ json: { ...item.json, imagenBase64: null, imagenMimeType: null } }];\n}\n\nconst imagenBase64 = binary.data; // già base64 in n8n binary\nconst imagenMimeType = binary.mimeType || 'image/png';\n\nreturn [{ json: { ...item.json, imagenBase64, imagenMimeType } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3184,
+        -176
+      ],
+      "id": "0cb0dabb-5584-4bc2-b996-e1e4e55fa6b1",
+      "name": "Converti Immagine in Base64"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\n// Dati base\nconst collaboratore = data.collaboratore || '';\nconst paese = data.paese || '';\nconst paeseSupabase = data.paeseSupabase || '';\nconst cuatrimestre = data.cuatrimestre || '';\nconst anno = data.anno || new Date().getFullYear();\nconst ruolo = data.collaboratorTypeName || '';\n\n// Premio individuale\nconst premioTotale = data.premioTotale || 0;\nconst bonusCurrency = data.bonusCurrency || '';\nconst soglie = data.soglie || [];\n\n// Premio filiale\nconst premioFiliale = data.premioFiliale || 0;\nconst valoreTotaleFiliale = data.valoreTotaleFiliale || 0;\nconst premioTotaleConFiliale = data.premioTotaleConFiliale || premioTotale;\n\n// Formattazione numeri\nconst fmt = (n, decimals = 2) => Number(n).toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });\n\n// Righe tabella soglie individuale\nconst righeSoglie = soglie.map(s => `\n  <tr>\n    <td>${s.ObjectiveThresholdType}</td>\n    <td>${s.ObjectiveThresholdRevenueCurrency} ${fmt(s.ObjectiveThresholdRevenueValue)}</td>\n    <td>${s.ObjectiveThresholdBonusCurrency} ${fmt(s.ObjectiveThresholdBonusValue)}</td>\n  </tr>\n`).join('');\n\nconst imagenBase64 = data.imagenBase64 || '';\nconst imagenMimeType = data.imagenMimeType || 'image/png';\n\n// Logo aziendale (base64 embedded, stessa immagine usata dal legacy)\nconst LOGO_B64 = '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';\n\n// Intestazione azienda: SOLO se paeseSupabase è esplicitamente uno dei tre paesi validi.\n// Nessun default automatico — se non c'è match, va solo il logo, senza dati aziendali.\nconst aziende = {\n  'MEXICO': {\n    nome: 'Unox Mexico S. de R.L. de C.V.',\n    indirizzo: 'Av. Santa Fe, 170, Int. 6-4-12',\n    citta: 'Lomas de Santa Fe, 01210 Ciudad de Mexico, Mexico',\n    fiscal: 'RFC: UME1508269H3',\n    contatto: 'info.mx@unox.com'\n  },\n  'MÉXICO': null, // placeholder per normalizzazione sotto\n  'COLOMBIA': {\n    nome: 'UNOX COLOMBIA S.A.S.',\n    indirizzo: 'Cr 16 No. 97 46 P 8',\n    citta: 'Bogotá D.C., Colombia',\n    fiscal: 'NIT 901.453.891-8',\n    contatto: 'info.co@unox.com'\n  },\n  'ITALIA': {\n    nome: 'Unox S.p.A.',\n    indirizzo: 'Via Majorana 22',\n    citta: '35010 Cadoneghe PD – Italy',\n    fiscal: 'Tel. +39 049 86.57.511 · Fax. +39 049 86.57.555',\n    contatto: 'www.unox.com'\n  }\n};\n\n// Normalizzazione accent-insensitive per il lookup (coerente col fix già fatto in Inbox Processor)\nconst normalizzaPaese = (s) => (s || '')\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .trim().toUpperCase();\n\nconst paeseKey = normalizzaPaese(paeseSupabase);\nconst mappaNormalizzata = { 'MEXICO': aziende['MEXICO'], 'COLOMBIA': aziende['COLOMBIA'], 'ITALIA': aziende['ITALIA'] };\nconst azienda = mappaNormalizzata[paeseKey] || null;\n\nconst headerInfoHtml = azienda ? `\n  <div class=\"header-info\">\n    <strong>${azienda.nome}</strong>\n    <p>${azienda.indirizzo}</p>\n    <p>${azienda.citta}</p>\n    <p>${azienda.fiscal}</p>\n    <p>${azienda.contatto}</p>\n  </div>\n` : '';\n\nconst html = `\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<style>\n  body { font-family: Arial, sans-serif; margin: 40px; color: #1a1a1a; font-size: 12px; }\n  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }\n  .header-logo img { width: 180px; }\n  .header-info { text-align: right; }\n  .header-info strong { font-size: 13px; }\n  .header-info p { margin: 2px 0; }\n  h1 { font-size: 20px; margin-bottom: 4px; }\n  .highlight { background: #ffe066; padding: 2px 6px; font-weight: bold; }\n  .section-title { font-weight: bold; margin-top: 24px; margin-bottom: 8px; }\n  table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }\n  th, td { border: 1px solid #999; padding: 6px 10px; text-align: center; font-size: 12px; }\n  th { background: #1a1a1a; color: white; }\n  .qlik-image { max-width: 100%; margin-top: 20px; border: 1px solid #ccc; }\n  .firma { margin-top: 60px; font-size: 13px; }\n</style>\n</head>\n<body>\n  <div class=\"header\">\n    <div class=\"header-logo\">\n      <img src=\"data:image/png;base64,${LOGO_B64}\" />\n    </div>\n    ${headerInfoHtml}\n  </div>\n\n  <h1>${collaboratore}: Resultado ${cuatrimestre} ${anno} ${ruolo ? '– ' + ruolo : ''}</h1>\n\n  <p>Premio bruto previsto: <span class=\"highlight\">${bonusCurrency} ${fmt(premioTotale, 0)}</span></p>\n\n  <div class=\"section-title\">Detalle Individual – ${paese}</div>\n  <table>\n    <tr><th>Umbral</th><th>Facturación (umbral)</th><th>Premio</th></tr>\n    ${righeSoglie}\n  </table>\n\n  ${premioFiliale > 0 ? `\n  <div class=\"section-title\">Premio Filial</div>\n  <p>Premio filial correspondiente a ${paese}: <span class=\"highlight\">${bonusCurrency} ${fmt(valoreTotaleFiliale, 0)}</span></p>\n  ` : ''}\n\n  <div class=\"section-title\">Total</div>\n  <p><span class=\"highlight\">${bonusCurrency} ${fmt(premioTotaleConFiliale, 0)}</span></p>\n\n  ${imagenBase64 ? `\n  <div class=\"section-title\">Fuente Qlik</div>\n  <img class=\"qlik-image\" src=\"data:${imagenMimeType};base64,${imagenBase64}\" />\n  ` : ''}\n\n  <div class=\"firma\">\n    <p>${collaboratore}</p>\n    <p>Firma de reconocimiento y aceptación</p>\n    ${ruolo ? `<p>${ruolo}</p>` : ''}\n  </div>\n</body>\n</html>\n`;\n\nreturn [{\n  json: { ...data, html },\n  binary: {\n    html: {\n      data: Buffer.from(html).toString('base64'),\n      mimeType: 'text/html',\n      fileName: 'index.html'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3392,
+        -176
+      ],
+      "id": "737482c9-5033-4e1b-ad1c-494377503034",
+      "name": "Genera HTML Risultato"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/forms/chromium/convert/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "html"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3600,
+        -176
+      ],
+      "id": "b2543b92-a178-4637-9a2e-b9bc285c9591",
+      "name": "Converti HTML in PDF (Gotenberg)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "299fccdd-8369-457d-a680-713f6dd94d2c",
+              "name": "collaboratorId",
+              "value": 8,
+              "type": "number"
+            },
+            {
+              "id": "147ac5d3-698c-47c4-acca-85d7734a706e",
+              "name": "periodo",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "0404f02b-8aad-47c5-b6ea-1ddd8ea8c231",
+              "name": "anno",
+              "value": 2026,
+              "type": "number"
+            },
+            {
+              "id": "3aa4b054-9ee6-4847-9c88-fc238a08ab1b",
+              "name": "cuatrimestre",
+              "value": "1er Cuatrimestre 2026",
+              "type": "string"
+            },
+            {
+              "id": "53820765-1ddb-4f85-a4d8-48c7686fea68",
+              "name": "collaboratoreName",
+              "value": "J.Carpio",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        160
+      ],
+      "id": "59f094e2-2770-4f6a-8a3a-7f454dc89d9b",
+      "name": "Edit Fields",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Premio calcolato correttamente\",\n  \"pdfUrl\": \"{{ $json.webViewLink }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        4016,
+        -176
+      ],
+      "id": "02005182-a8d8-46f9-aac3-946605b6d9ca",
+      "name": "Rispondi Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Valida Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valida Input": {
+      "main": [
+        [
+          {
+            "node": "Cerca Buffer Qlik",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cerca Buffer Qlik": {
+      "main": [
+        [
+          {
+            "node": "Buffer trovato?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buffer trovato?": {
+      "main": [
+        [
+          {
+            "node": "Scarica Buffer Qlik",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Errore Buffer Non Trovato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scarica Buffer Qlik": {
+      "main": [
+        [
+          {
+            "node": "Leggi Buffer Qlik",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leggi Buffer Qlik": {
+      "main": [
+        [
+          {
+            "node": "Leggi Obiettivi da Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leggi Obiettivi da Supabase": {
+      "main": [
+        [
+          {
+            "node": "Calcola Premio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cerca Profile Collaboratore": {
+      "main": [
+        [
+          {
+            "node": "Scarica Profile Collaboratore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leggi Profile": {
+      "main": [
+        [
+          {
+            "node": "Scarica Immagine Qlik",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcola Premio": {
+      "main": [
+        [
+          {
+            "node": "Cerca Buffer Filiale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cerca Buffer Filiale": {
+      "main": [
+        [
+          {
+            "node": "Buffer Filiale Trovato?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buffer Filiale Trovato?": {
+      "main": [
+        [
+          {
+            "node": "Scarica Buffer Filiale",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Premio Filiale Zero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scarica Buffer Filiale": {
+      "main": [
+        [
+          {
+            "node": "Somma Premio Filiale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Somma Premio Filiale": {
+      "main": [
+        [
+          {
+            "node": "Cerca Profile Collaboratore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Premio Filiale Zero": {
+      "main": [
+        [
+          {
+            "node": "Cerca Profile Collaboratore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scarica Profile Collaboratore": {
+      "main": [
+        [
+          {
+            "node": "Leggi Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scarica Immagine Qlik": {
+      "main": [
+        [
+          {
+            "node": "Converti Immagine in Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Converti Immagine in Base64": {
+      "main": [
+        [
+          {
+            "node": "Genera HTML Risultato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Converti HTML in PDF (Gotenberg)": {
+      "main": [
+        [
+          {
+            "node": "Salva PDF Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Genera HTML Risultato": {
+      "main": [
+        [
+          {
+            "node": "Converti HTML in PDF (Gotenberg)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Valida Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva PDF Results": {
+      "main": [
+        [
+          {
+            "node": "Rispondi Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "dfcf007f-4098-4e7b-a31d-30e6a9856d5f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb459c26085e929aeda276e49cc0e32c828456bec2557b0c942d8bb00ca8b164"
+  },
+  "id": "pPwuWafnqzDSvcqJ",
+  "tags": []
+}
