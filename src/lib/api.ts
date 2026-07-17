@@ -174,7 +174,7 @@ interface ObjectiveThresholdInput {
 }
 
 export const objectivePlanApi = {
-  list: async (filters?: { collaboratorId?: number; periodId?: number; status?: ObjectiveStatus }) => {
+  list: async (filters?: { collaboratorId?: number; periodId?: number; status?: ObjectiveStatus; scope?: ObjectivePlanScope }) => {
     let q = supabase
       .from('ObjectivePlan')
       .select('*, Period(PeriodDescription, PeriodYear), ObjectivePlanCountry(CountryId, Country(CountryName)), CollaboratorObjectivePlan(CollaboratorId)')
@@ -188,6 +188,7 @@ export const objectivePlanApi = {
     }
     if (filters?.periodId) q = q.eq('PeriodId', filters.periodId)
     if (filters?.status) q = q.eq('ObjectiveStatus', filters.status)
+    if (filters?.scope) q = q.eq('ObjectivePlanScope', filters.scope)
     return q
   },
 

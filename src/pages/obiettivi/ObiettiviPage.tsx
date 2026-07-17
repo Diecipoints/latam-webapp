@@ -288,7 +288,7 @@ export function ObiettiviPage() {
 
   async function load() {
     setLoading(true)
-    const filters: { periodId?: number; status?: ObjectiveStatus } = {}
+    const filters: { periodId?: number; status?: ObjectiveStatus; scope: 'individual' } = { scope: 'individual' }
     if (filterPeriod !== 'tutti') filters.periodId = Number(filterPeriod)
     if (filterStatus !== 'tutti') filters.status = filterStatus as ObjectiveStatus
     const { data, error } = await objectivePlanApi.list(filters)
