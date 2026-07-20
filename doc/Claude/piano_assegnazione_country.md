@@ -47,7 +47,23 @@ Applicare manualmente via Supabase SQL Editor, stesso pattern già usato per `mi
 - ✅ `ObiettiviPage.tsx` filtra di default `scope: 'individual'` (commit `4ad3381`)
 - ✅ `ObjectivePlanDialog` estratto in componente condiviso (`src/pages/obiettivi/ObjectivePlanDialog.tsx`, commit `d63d49b`)
 - ✅ Prop `scope`/`lockedCountryId` aggiunte a `ObjectivePlanDialog` (commit `c1a853e`) — quando `lockedCountryId` è presente, "Paesi coperti" mostra etichetta statica invece della checklist, e `CountryIds` viene forzato a `[lockedCountryId]`
-- ⏳ **Prossimo step**: creare `CountryPage.tsx` (struttura concordata sotto), poi route + voce sidebar
+- ✅ `CountryPage.tsx` creata secondo la struttura concordata sotto, isolata (commit `2be532e`)
+- ✅ Route `/country` in `App.tsx` + voce sidebar "Country" (icona `Globe`) in `AppLayout.tsx` (commit `446f3a3`)
+- ✅ Verifica manuale in dev completata (lista country, creazione/modifica/eliminazione piano filiale, dialog con country bloccato, badge in tabella, voce menu) — tutto funzionante
+
+**Step 2: COMPLETATO.** Commit della fase di implementazione: `d63d49b`, `c1a853e` (2026-07-17), `2be532e`, `446f3a3` (2026-07-20).
+
+**Punto aperto emerso dal test manuale (da decidere prima di proseguire con lo Step n8n):**
+Nulla in `CountryPage.tsx` / `ObjectivePlanDialog` / lato DB impedisce di creare più piani `filiale` per lo stesso `CountryId` nello stesso `PeriodId` — non c'è un vincolo `UNIQUE` su Supabase né una validazione pre-submit nel dialog. Da decidere quale delle seguenti strade seguire:
+1. Vietarlo con un `UNIQUE` constraint (parziale, solo per `ObjectivePlanScope = 'filiale'`) su `(CountryId, PeriodId)` via `ObjectivePlanCountry` + `Period` — richiede una migrazione aggiuntiva.
+2. Permetterlo ma sommare i piani nel calcolo n8n "Somma Premio Filiale".
+3. Bloccarlo lato UI in `CountryPage.tsx`/`ObjectivePlanDialog` (validazione client-side prima del submit).
+
+Non blocca l'uso attuale della pagina, ma va risolto prima di implementare il nodo "Somma Premio Filiale" in n8n (vedi sezione "Non incluso in questo giro" più sotto).
+
+**Prossimi step (non ancora iniziati):**
+- Step 3 — Bottone "Duplica" su ObjectivePlan: **da fare**
+- Step 4 — Filtri/liste esistenti (badge/tab Individuale/Filiale in `ObiettiviPage.tsx`): **da fare**
 
 ### Struttura concordata per `CountryPage.tsx`
 

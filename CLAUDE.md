@@ -236,6 +236,44 @@ cdbefd1 Fix ctx null check in ParticleCanvas
 
 ---
 
+## Sessione 2026-07-20 — Assegnazione ObjectivePlan → Country (premio filiale)
+
+Riferimento: piano dettagliato in `doc/Claude/piano_assegnazione_country.md`. Continua il lavoro dei giorni precedenti (migrazione `ObjectivePlanScope`, estrazione `ObjectivePlanDialog`) completando lo **Step 2** del piano.
+
+### `CountryPage.tsx` e wiring (Step 2 — completato)
+
+- **Creato** `src/pages/country/CountryPage.tsx`: elenca tutti i Country con la relativa Regione, i piani `ObjectivePlan` di scope `filiale` assegnati a ciascuno (Badge nome + `StatusPill`), azioni inline Pencil/Trash2 per modificare/eliminare i piani esistenti, e un bottone "Assegna Obiettivo" (icona `Target`) per crearne uno nuovo bloccato su quel country.
+- Riusa `ObjectivePlanDialog` passando `scope="filiale"` e `lockedCountryId`: nel dialog questo sostituisce la checklist multi-paese con un'etichetta statica e forza `CountryIds` a `[lockedCountryId]`.
+- Raggruppamento piani→country calcolato al volo via `reduce` su `plan.ObjectivePlanCountry?.[0]?.CountryId`, nessuno state separato.
+- **Modificato** `src/App.tsx`: aggiunta route `/country` → `CountryPage`.
+- **Modificato** `src/components/layout/AppLayout.tsx`: aggiunta voce sidebar "Country" (icona `Globe` di lucide-react) tra "Obiettivi" e "Risultati".
+- Verificato manualmente in dev (`npm run dev`): lista country, apertura dialog con country bloccato (etichetta statica, non checklist), creazione/modifica/eliminazione piano filiale, comparsa/scomparsa badge in tabella, voce menu — tutto funzionante.
+
+### Punto aperto emerso dal test manuale
+
+Nessun vincolo, né lato DB né lato UI, impedisce oggi di creare più piani `filiale` per lo stesso country nello stesso periodo. Da decidere (opzioni dettagliate in `doc/Claude/piano_assegnazione_country.md`) prima di implementare il nodo n8n "Somma Premio Filiale", che oggi resta forzato a restituire 0.
+
+### Stato piano generale (`piano_assegnazione_country.md`)
+
+- Step 0 (checkpoint), Step 1 (migrazione `ObjectivePlanScope`), Step 2 (`CountryPage` + wiring): **completati**
+- Step 3 (bottone "Duplica" su ObjectivePlan) e Step 4 (badge/tab Individuale/Filiale in `ObiettiviPage.tsx`): **da fare**
+
+### Commit history di sessione
+
+Commit del 2026-07-20 (oggi):
+```
+2be532e Add CountryPage with inline plan management
+446f3a3 Wire /country route and sidebar entry
+```
+
+Commit del 2026-07-17 (fase precedente dello stesso Step 2, propedeutici):
+```
+c1a853e Add scope and lockedCountryId props to ObjectivePlanDialog
+d63d49b Extract ObjectivePlanDialog into shared component
+```
+
+---
+
 ## Prossimi step
 
 - [ ] **Deployment:** creare `docker-compose.yml` (app + eventuali servizi), `Dockerfile` multi-stage per Vite SPA, `.env.example` documentato
