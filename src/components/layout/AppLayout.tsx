@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Users, Target, BarChart3, Settings, Building2, LogOut } from 'lucide-react'
+import { Users, Target, BarChart3, Settings, Building2, Globe, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Toaster } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context'
 const navItems = [
   { to: '/collaboratori', label: 'Collaboratori', icon: Users },
   { to: '/obiettivi', label: 'Obiettivi', icon: Target },
+  { to: '/country', label: 'Country', icon: Globe },
   { to: '/risultati', label: 'Risultati', icon: BarChart3 },
   { to: '/impostazioni', label: 'Impostazioni', icon: Settings },
 ]

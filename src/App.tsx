@@ -13,6 +13,7 @@ import { CollaboratoreDetailPage } from '@/pages/collaboratori/CollaboratoreDeta
 import { ObiettiviPage } from '@/pages/obiettivi/ObiettiviPage'
 import { ObiettivoDetailPage } from '@/pages/obiettivi/ObiettivoDetailPage'
 import { RisultatiPage } from '@/pages/risultati/RisultatiPage'
+import { CountryPage } from '@/pages/country/CountryPage'
 import { cn } from '@/lib/utils'
 
 const impostazioniLinks = [
@@ -73,6 +74,7 @@ export default function App() {
               <Route path="/obiettivi" element={<ObiettiviPage />} />
               <Route path="/obiettivi/:id" element={<ObiettivoDetailPage />} />
               <Route path="/risultati" element={<RisultatiPage />} />
+              <Route path="/country" element={<CountryPage />} />
               <Route path="/impostazioni" element={<ImpostazioniLayout />}>
                 <Route index element={<Navigate to="/impostazioni/regioni" replace />} />
                 <Route path="regioni" element={<RegionPage />} />
