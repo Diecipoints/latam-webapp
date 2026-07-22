@@ -274,8 +274,40 @@ d63d49b Extract ObjectivePlanDialog into shared component
 
 ---
 
+## Sessione 2026-07-22 — Step 2.5, 3, 4: assegnazione Piano→Country resa affidabile
+
+Continua e chiude il lavoro di `doc/Claude/piano_assegnazione_country.md` iniziato il 2026-07-20 (Step 2, `CountryPage.tsx`). Tutto testato manualmente in dev e pushato su `main`.
+
+### Step 2.5 — Vincolo: un solo piano filiale attivo per Country (`ebbbb0d`, oltre a `8c6ee7c`)
+
+- Migrazione SQL applicata manualmente su Supabase: colonna `active` boolean su `ObjectivePlanCountry` (default `true`), colonna `scope` denormalizzata sincronizzata via trigger da `ObjectivePlan.ObjectivePlanScope`, unique index parziale (`active=true AND scope='filiale'` per `CountryId`), funzione RPC `swap_active_filiale_plan(p_country_id, p_new_objective_plan_id)` per lo swap atomico disattiva-vecchio/attiva-nuovo.
+- `database.types.ts` e `api.ts` aggiornati: `objectivePlanApi.reactivateFiliale()`, `create()` gestisce l'inserimento di un nuovo piano filiale quando il country ha già un piano attivo (insert `active:false` + swap via RPC), `update()` corretto per preservare `active` invece di resettarlo ad ogni modifica (bug scoperto durante l'implementazione).
+- `CountryPage.tsx`: piano attivo in evidenza per country, storico espandibile con bottone "Riattiva", warning ambrato nel dialog di eliminazione quando si elimina il piano attivo.
+
+### Step 3 — Duplica piano + fix sicurezza DRAFT (`bd5b4fe`)
+
+- Bottone "Duplica" (icona `Copy`) su `ObiettiviPage.tsx` e `CountryPage.tsx`: copia periodo/paesi/nome/soglie di un piano esistente in un nuovo dialog di creazione (`ObjectivePlanDialog` esteso con prop `duplicateFrom`, distinto da `item` così il submit chiama sempre `create()`, mai `update()` — il piano originale non viene mai toccato). Stato forzato a `DRAFT` sul duplicato, non ereditato dall'originale.
+- **Fix di sicurezza emerso in test manuale**: creare un piano filiale in stato `DRAFT` per un country con già un piano attivo non deve promuoverlo automaticamente (rischio di far calcolare a n8n dei premi reali su soglie non finalizzate). Ora lo swap via RPC scatta solo se il nuovo piano ha uno stato diverso da `DRAFT`; un piano `DRAFT` nasce `active:false` e resta in storico finché non viene promosso. Toast dedicato in UI quando questo succede.
+
+### Step 4 — Toggle Individuale/Filiale in ObiettiviPage (`8df4d44`)
+
+- Segmented control "Individuale | Filiale" in cima a `ObiettiviPage.tsx` (due `<button>` stilizzati a mano, nessuna nuova dipendenza — niente `Tabs` di Radix nel progetto) che pilota il filtro `scope` passato a `objectivePlanApi.list()`.
+- "Nuovo Obiettivo" nascosto sulla tab Filiale (creare un piano filiale richiede un country di contesto che questa pagina non ha; resta un link a `/country`).
+- `lockedCountryId` propagato su Modifica/Duplica per le righe filiale mostrate qui, altrimenti si potrebbe aggiungere un secondo `CountryId` a un piano filiale rompendo l'assunzione "un piano filiale = un solo country" su cui si basa il raggruppamento in `CountryPage.tsx`.
+
+### Stato piano generale (`piano_assegnazione_country.md`)
+
+Step 0, 1, 2, 2.5, 3, 4: **tutti completati**. Riferimento dettagliato con diff, decisioni e verifiche manuali in `doc/Claude/piano_assegnazione_country.md`.
+
+### Prossimo lavoro
+
+Il nodo **"Somma Premio Filiale"** nel workflow n8n "Calcolo Premio" resta forzato a restituire 0. È ora sbloccabile: l'assegnazione Piano→Country è finalmente univoca e affidabile (un solo piano attivo per country, garantito sia da constraint DB che da RPC transazionale), quindi si può implementare il calcolo reale a soglie (`si_alcanza`/`adicionalmente`/`adicionalmente_mayor`) confrontando `valore_totale_filiale` con le soglie del piano `filiale` attivo assegnato al country per quel periodo.
+
+---
+
 ## Prossimi step
 
+- [ ] **n8n — nodo "Somma Premio Filiale":** implementare il calcolo reale a soglie ora che l'assegnazione Piano→Country è affidabile (vedi sessione 2026-07-22 sopra)
 - [ ] **Deployment:** creare `docker-compose.yml` (app + eventuali servizi), `Dockerfile` multi-stage per Vite SPA, `.env.example` documentato
 - [ ] **n8n webhook:** spostare la costante `N8N_WEBHOOK` in variabile d'ambiente (`.env`) invece di hardcodarla nel sorgente — evita commit ogni volta che il tunnel cambia
 - [ ] **Refinement UI obiettivi:** valutare miglioramenti alla pagina `/obiettivi` (filtri, stato badge, link documenti)
