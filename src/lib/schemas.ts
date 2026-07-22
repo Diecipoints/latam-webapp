@@ -55,7 +55,7 @@ export const ObjectivePlanSchema = z.object({
   CountryIds: z.array(z.number().int().positive()).min(1, 'Seleziona almeno un paese'),
   ObjectivePlanName: z.string().min(1, 'Nome piano obbligatorio'),
   ObjectiveStatus: ObjectiveStatusEnum,
-  ObjectivePlanScope: ObjectivePlanScopeEnum.default('individual'),
+  ObjectivePlanScope: ObjectivePlanScopeEnum,
   Thresholds: z.array(ObjectiveThresholdSchema).min(1, 'Aggiungi almeno una soglia'),
 })
 

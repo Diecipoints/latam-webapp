@@ -75,6 +75,7 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
       CountryIds: [],
       ObjectivePlanName: '',
       ObjectiveStatus: 'DRAFT',
+      ObjectivePlanScope: scope,
       Thresholds: [],
     },
   })
