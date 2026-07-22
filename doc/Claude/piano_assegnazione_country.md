@@ -53,15 +53,11 @@ Applicare manualmente via Supabase SQL Editor, stesso pattern già usato per `mi
 
 **Step 2: COMPLETATO.** Commit della fase di implementazione: `d63d49b`, `c1a853e` (2026-07-17), `2be532e`, `446f3a3` (2026-07-20).
 
-**Punto aperto emerso dal test manuale (da decidere prima di proseguire con lo Step n8n):**
-Nulla in `CountryPage.tsx` / `ObjectivePlanDialog` / lato DB impedisce di creare più piani `filiale` per lo stesso `CountryId` nello stesso `PeriodId` — non c'è un vincolo `UNIQUE` su Supabase né una validazione pre-submit nel dialog. Da decidere quale delle seguenti strade seguire:
-1. Vietarlo con un `UNIQUE` constraint (parziale, solo per `ObjectivePlanScope = 'filiale'`) su `(CountryId, PeriodId)` via `ObjectivePlanCountry` + `Period` — richiede una migrazione aggiuntiva.
-2. Permetterlo ma sommare i piani nel calcolo n8n "Somma Premio Filiale".
-3. Bloccarlo lato UI in `CountryPage.tsx`/`ObjectivePlanDialog` (validazione client-side prima del submit).
-
-Non blocca l'uso attuale della pagina, ma va risolto prima di implementare il nodo "Somma Premio Filiale" in n8n (vedi sezione "Non incluso in questo giro" più sotto).
+**Punto aperto emerso dal test manuale — RISOLTO (decisione 2026-07-22):**
+Nulla in `CountryPage.tsx` / `ObjectivePlanDialog` / lato DB impedisce di creare più piani `filiale` per lo stesso `CountryId` nello stesso `PeriodId` — non c'è un vincolo `UNIQUE` su Supabase né una validazione pre-submit nel dialog. Delle tre strade elencate in origine (UNIQUE constraint secco / somma in n8n / blocco solo UI), si è scelta una variante più ricca della prima: non un vincolo "per periodo" ma un **vincolo assoluto "un solo piano filiale attivo per country alla volta"**, con storico dei piani disattivati riattivabile. Dettagli completi nella nuova sezione **Step 2.5** più sotto.
 
 **Prossimi step (non ancora iniziati):**
+- Step 2.5 — Vincolo "un solo piano filiale attivo per Country" (schema + RPC + UI): **da fare**, dettagliato sotto
 - Step 3 — Bottone "Duplica" su ObjectivePlan: **da fare**
 - Step 4 — Filtri/liste esistenti (badge/tab Individuale/Filiale in `ObiettiviPage.tsx`): **da fare**
 
@@ -112,6 +108,51 @@ Render:
 - Nessun bottone "Duplica" (Step 3 del piano generale)
 
 Dopo la creazione del file: verifica `tsc --noEmit`, controllo visivo in dev, poi commit isolato. Solo dopo si procede con route (`App.tsx`) e voce sidebar (`AppLayout.tsx`) come passo separato successivo.
+
+---
+
+## Step 2.5 — Vincolo: un solo piano filiale attivo per Country
+
+Decisione presa il 2026-07-22, a valle del punto aperto emerso testando `CountryPage.tsx` (vedi sopra).
+
+### Regola di dominio
+
+Un `Country` può avere **al massimo un `ObjectivePlan` con `scope='filiale'` attivo alla volta**. Non è un vincolo "per periodo/cuatrimestre" — è assoluto, finché non viene esplicitamente cambiato.
+
+### Schema
+
+- Aggiungere flag `active: boolean` (default `true`) su `ObjectivePlanCountry` (verificare in implementazione se il campo semanticamente sta meglio qui o su `ObjectivePlan` — da confermare con lo schema attuale prima di scrivere la migrazione).
+- **Constraint DB**: unique index parziale su `Country` filtrato a `WHERE active = true AND scope = 'filiale'`. Impedisce a livello di database l'esistenza di due piani filiale attivi sullo stesso country, indipendentemente dal client che scrive (webapp, n8n, script diretto).
+- Nessun vincolo sui record `active = false`: si accumulano liberamente come storico/libreria di piani riutilizzabili.
+
+### Comportamento
+
+| Azione manager | Effetto |
+|---|---|
+| Modifica soglie di un piano attivo | Update in place, stesso record/id |
+| Cambia piano (nuovo) | Swap: disattiva il piano attualmente attivo per quel country, crea/attiva il nuovo |
+| Torna al piano precedente | Riattivazione di un record storico esistente — **nessuna duplicazione**, soglie identiche a quando era stato disattivato |
+
+### Swap atomico: funzione RPC, non query dal client
+
+Lo swap (disattiva vecchio + attiva nuovo) va implementato come **funzione Postgres/RPC transazionale** (`supabase.rpc(...)`), non come due query separate dal client.
+
+Motivo: due operazioni sequenziali dal client lasciano una finestra in cui, se la seconda fallisce, il country resta senza piano attivo (stato inconsistente silenzioso — stessa classe di bug già vista nel progetto, es. `pairedItem`, `valore_totale_filiale`).
+
+La funzione RPC garantisce che l'operazione sia atomica (tutto o niente). Il constraint unique parziale resta comunque attivo come rete di sicurezza aggiuntiva, indipendente da eventuali bug futuri nella funzione o chiamate dirette da altrove.
+
+### UI (`CountryPage.tsx`)
+
+- Piano attivo mostrato in evidenza per ciascun country
+- Elenco piani storici (disattivati) associati al country, riattivabili con un click
+- Azione "cambia piano" = seleziona un piano storico esistente OPPURE crea uno nuovo → il sistema esegue lo swap via RPC
+
+### Prossimi step tecnici (non ancora iniziati)
+
+1. Definire dove va il campo `active` nello schema (probabilmente `ObjectivePlanCountry`) e scrivere la migrazione
+2. Scrivere la funzione RPC `swap_active_plan(country_id, new_plan_id)` con constraint unique parziale
+3. Aggiornare `CountryPage.tsx`: sezione piano attivo + lista storico riattivabile
+4. Solo dopo questo: tornare al nodo n8n "Somma Premio Filiale" (oggi forzato a 0) per implementare il calcolo reale delle soglie, ora che l'assegnazione Piano→Country è garantita univoca
 
 ---
 
