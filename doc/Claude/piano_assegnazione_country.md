@@ -199,6 +199,16 @@ Verificato manualmente in dev (2026-07-22): piano DRAFT creato con un piano ASSI
 - `ObiettiviPage.tsx` (lista piani) va aggiornata per mostrare/filtrare per `ObjectivePlanScope`, così i piani individuali e quelli filiale non si mescolano in un'unica vista indistinta.
 - Valutare un badge o tab (Individuale / Filiale) coerente col resto del design system (badge status già usato per `ObjectiveStatus`).
 
+**Step 4: COMPLETATO (2026-07-22).**
+
+Soluzione scelta tra tre opzioni valutate (Select come terzo filtro / toggle segmented control / vista unica con badge): **toggle segmented control "Individuale | Filiale"** in cima a `ObiettiviPage.tsx`, sopra la card filtri esistente. Implementato con due `<button>` stilizzati a mano (nessun componente `Tabs` di shadcn/Radix nel progetto, nessuna nuova dipendenza aggiunta) — `scopeFilter` pilota direttamente il parametro `scope` passato a `objectivePlanApi.list()`.
+
+Punti di attenzione emersi durante la progettazione e risolti nell'implementazione:
+- **"Nuovo Obiettivo" nascosto sulla tab Filiale**: creare un piano filiale richiede un country di contesto che questa pagina non ha (a differenza di `CountryPage.tsx`, che parte sempre da una riga country). Sulla tab Filiale il bottone scompare, sostituito da un testo con link a `/country`.
+- **`lockedCountryId` propagato su Modifica/Duplica per righe filiale**: senza questo accorgimento, aprire il dialog di modifica/duplica su un piano filiale da questa pagina avrebbe mostrato la checklist paesi sbloccata, permettendo di aggiungere un secondo `CountryId` a un piano filiale — rompendo l'assunzione "un piano filiale = un solo country" su cui si basa tutto il raggruppamento in `CountryPage.tsx` (`ObjectivePlanCountry?.[0]`) e il vincolo unique-per-country lato DB. Ora Modifica/Duplica calcolano `lockedCountryId` dalla riga stessa quando `ObjectivePlanScope === 'filiale'`, bloccando il country esattamente come già avviene in `CountryPage.tsx`.
+
+Verificato manualmente in dev (2026-07-22): tab Individuale di default con "Nuovo Obiettivo" visibile; switch a Filiale aggiorna la lista, nasconde il bottone, mostra il link a Country; Modifica e Duplica su un piano filiale da questa pagina mostrano il country bloccato (non la checklist).
+
 ---
 
 ## Non incluso in questo giro (resta per dopo, lato n8n)

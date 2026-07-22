@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Pencil, Trash2, Plus, Eye, Copy } from 'lucide-react'
 
 import { objectivePlanApi, periodApi, countryApi } from '@/lib/api'
-import type { ObjectiveStatus } from '@/lib/database.types'
+import type { ObjectiveStatus, ObjectivePlanScope } from '@/lib/database.types'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +39,9 @@ export function ObiettiviPage() {
   const [deleting, setDeleting] = useState(false)
   const [filterPeriod, setFilterPeriod] = useState('tutti')
   const [filterStatus, setFilterStatus] = useState('tutti')
+  const [scopeFilter, setScopeFilter] = useState<ObjectivePlanScope>('individual')
+  const [dialogScope, setDialogScope] = useState<ObjectivePlanScope>('individual')
+  const [dialogLockedCountryId, setDialogLockedCountryId] = useState<number | undefined>(undefined)
 
   useEffect(() => {
     Promise.all([periodApi.list(), countryApi.list()]).then(([p, co]) => {
@@ -49,7 +52,7 @@ export function ObiettiviPage() {
 
   async function load() {
     setLoading(true)
-    const filters: { periodId?: number; status?: ObjectiveStatus; scope: 'individual' } = { scope: 'individual' }
+    const filters: { periodId?: number; status?: ObjectiveStatus; scope: ObjectivePlanScope } = { scope: scopeFilter }
     if (filterPeriod !== 'tutti') filters.periodId = Number(filterPeriod)
     if (filterStatus !== 'tutti') filters.status = filterStatus as ObjectiveStatus
     const { data, error } = await objectivePlanApi.list(filters)
@@ -58,7 +61,7 @@ export function ObiettiviPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [filterPeriod, filterStatus])
+  useEffect(() => { load() }, [filterPeriod, filterStatus, scopeFilter])
 
   async function handleDelete() {
     if (!deleteItem) return
@@ -80,8 +83,18 @@ export function ObiettiviPage() {
       cell: (r) => (
         <div className="flex justify-end gap-0.5">
           <Button variant="ghost" size="icon" asChild title="Dettaglio"><Link to={`/obiettivi/${r.ObjectivePlanId}`}><Eye className="h-4 w-4" /></Link></Button>
-          <Button variant="ghost" size="icon" onClick={() => { setEditItem(r); setDuplicateItem(null); setDialogOpen(true) }} title="Modifica"><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" onClick={() => { setEditItem(null); setDuplicateItem(r); setDialogOpen(true) }} title="Duplica"><Copy className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => {
+            setEditItem(r); setDuplicateItem(null)
+            setDialogScope(r.ObjectivePlanScope)
+            setDialogLockedCountryId(r.ObjectivePlanScope === 'filiale' ? r.ObjectivePlanCountry?.[0]?.CountryId : undefined)
+            setDialogOpen(true)
+          }} title="Modifica"><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => {
+            setEditItem(null); setDuplicateItem(r)
+            setDialogScope(r.ObjectivePlanScope)
+            setDialogLockedCountryId(r.ObjectivePlanScope === 'filiale' ? r.ObjectivePlanCountry?.[0]?.CountryId : undefined)
+            setDialogOpen(true)
+          }} title="Duplica"><Copy className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" onClick={() => setDeleteItem(r)} title="Elimina" className="text-red-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
         </div>
       ),
@@ -92,10 +105,38 @@ export function ObiettiviPage() {
     <div className="p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Obiettivi</h1>
-        <Button onClick={() => { setEditItem(null); setDuplicateItem(null); setDialogOpen(true) }}>
-          <Plus className="h-4 w-4" /> Nuovo Obiettivo
-        </Button>
+        {scopeFilter === 'individual' && (
+          <Button onClick={() => {
+            setEditItem(null); setDuplicateItem(null)
+            setDialogScope('individual'); setDialogLockedCountryId(undefined)
+            setDialogOpen(true)
+          }}>
+            <Plus className="h-4 w-4" /> Nuovo Obiettivo
+          </Button>
+        )}
       </div>
+
+      <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm w-fit">
+        <button
+          type="button"
+          onClick={() => setScopeFilter('individual')}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${scopeFilter === 'individual' ? 'bg-primary text-primary-foreground' : 'text-gray-600 hover:bg-gray-50'}`}
+        >
+          Individuale
+        </button>
+        <button
+          type="button"
+          onClick={() => setScopeFilter('filiale')}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${scopeFilter === 'filiale' ? 'bg-primary text-primary-foreground' : 'text-gray-600 hover:bg-gray-50'}`}
+        >
+          Filiale
+        </button>
+      </div>
+      {scopeFilter === 'filiale' && (
+        <p className="text-sm text-gray-500">
+          I piani filiale si creano da <Link to="/country" className="underline">Country</Link>, dove il paese di destinazione è già definito.
+        </p>
+      )}
 
       {/* Filters card */}
       <div className="bg-white rounded-2xl shadow-md p-4">
@@ -127,7 +168,17 @@ export function ObiettiviPage() {
         />
       </div>
 
-      <ObjectivePlanDialog open={dialogOpen} item={editItem} duplicateFrom={duplicateItem} periods={periods} countries={countries} onClose={() => setDialogOpen(false)} onSuccess={load} />
+      <ObjectivePlanDialog
+        open={dialogOpen}
+        item={editItem}
+        duplicateFrom={duplicateItem}
+        periods={periods}
+        countries={countries}
+        scope={dialogScope}
+        lockedCountryId={dialogLockedCountryId}
+        onClose={() => setDialogOpen(false)}
+        onSuccess={load}
+      />
 
       <AlertDialog open={!!deleteItem} onOpenChange={(v) => { if (!v) setDeleteItem(null) }}>
         <AlertDialogContent>
