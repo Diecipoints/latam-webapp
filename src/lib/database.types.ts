@@ -101,9 +101,9 @@ export interface Database {
         ]
       }
       ObjectivePlanCountry: {
-        Row: { ObjectivePlanCountryId: number; ObjectivePlanId: number; CountryId: number }
-        Insert: { ObjectivePlanCountryId?: number; ObjectivePlanId: number; CountryId: number }
-        Update: { ObjectivePlanCountryId?: number; ObjectivePlanId?: number; CountryId?: number }
+        Row: { ObjectivePlanCountryId: number; ObjectivePlanId: number; CountryId: number; active: boolean; scope: ObjectivePlanScope | null }
+        Insert: { ObjectivePlanCountryId?: number; ObjectivePlanId: number; CountryId: number; active?: boolean; scope?: ObjectivePlanScope | null }
+        Update: { ObjectivePlanCountryId?: number; ObjectivePlanId?: number; CountryId?: number; active?: boolean; scope?: ObjectivePlanScope | null }
         Relationships: [
           { foreignKeyName: 'ObjectivePlanCountry_ObjectivePlanId_fkey'; columns: ['ObjectivePlanId']; referencedRelation: 'ObjectivePlan'; referencedColumns: ['ObjectivePlanId'] },
           { foreignKeyName: 'ObjectivePlanCountry_CountryId_fkey'; columns: ['CountryId']; referencedRelation: 'Country'; referencedColumns: ['CountryId'] }
@@ -184,7 +184,12 @@ export interface Database {
       }
     }
     Views: { [_ in never]: never }
-    Functions: { [_ in never]: never }
+    Functions: {
+      swap_active_filiale_plan: {
+        Args: { p_country_id: number; p_new_objective_plan_id: number }
+        Returns: void
+      }
+    }
     Enums: {
       objective_status: ObjectiveStatus
       currency_code: CurrencyCode
