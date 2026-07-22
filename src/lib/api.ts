@@ -209,7 +209,7 @@ export const objectivePlanApi = {
   }) => {
     const { CountryIds, Thresholds, ...planData } = data
     const { data: plan, error: planError } = await supabase.from('ObjectivePlan').insert(planData).select().single()
-    if (planError || !plan) return { data: null, error: planError }
+    if (planError || !plan) return { data: null, error: planError, stayedInactive: false }
 
     let hasExistingActiveFiliale = false
     if (planData.ObjectivePlanScope === 'filiale' && CountryIds.length === 1) {
@@ -223,6 +223,8 @@ export const objectivePlanApi = {
       hasExistingActiveFiliale = !!existing
     }
 
+    const shouldSwap = hasExistingActiveFiliale && planData.ObjectiveStatus !== 'DRAFT'
+
     const [{ error: countryError }, { error: thresholdError }] = await Promise.all([
       supabase.from('ObjectivePlanCountry').insert(CountryIds.map((CountryId) => ({
         ObjectivePlanId: plan.ObjectivePlanId,
@@ -231,17 +233,17 @@ export const objectivePlanApi = {
       }))),
       supabase.from('ObjectiveThreshold').insert(Thresholds.map((t) => ({ ObjectivePlanId: plan.ObjectivePlanId, ...t }))),
     ])
-    if (countryError || thresholdError) return { data: null, error: countryError ?? thresholdError }
+    if (countryError || thresholdError) return { data: null, error: countryError ?? thresholdError, stayedInactive: false }
 
-    if (hasExistingActiveFiliale) {
+    if (shouldSwap) {
       const { error: swapError } = await supabase.rpc('swap_active_filiale_plan', {
         p_country_id: CountryIds[0],
         p_new_objective_plan_id: plan.ObjectivePlanId,
       })
-      if (swapError) return { data: null, error: swapError }
+      if (swapError) return { data: null, error: swapError, stayedInactive: false }
     }
 
-    return { data: plan, error: null }
+    return { data: plan, error: null, stayedInactive: hasExistingActiveFiliale && !shouldSwap }
   },
 
   update: async (id: number, data: Partial<{

@@ -182,6 +182,16 @@ In `ObiettiviPage.tsx` / `ObjectivoDetailPage.tsx`, aggiungere azione "Duplica" 
 - chiede all'utente il nuovo target (collaboratore o country) e il nuovo `ObjectivePlanScope`
 - crea un nuovo record indipendente — non tocca né modifica l'assegnazione originale
 
+### Correzione (2026-07-22): DRAFT non deve mai far scattare lo swap
+
+Emerso durante il test manuale dello Step 3: creare un nuovo `ObjectivePlan` `filiale` per un country che ha già un piano attivo faceva scattare **sempre** lo swap via `swap_active_filiale_plan`, indipendentemente da `ObjectiveStatus`. Un piano ancora in bozza (soglie non finalizzate) sarebbe quindi potuto diventare il piano "ufficiale" usato da n8n per calcolare i premi reali — rischio concreto su un calcolo che tocca soldi.
+
+**Fix in `objectivePlanApi.create` (`src/lib/api.ts`):** creare un piano filiale in stato `DRAFT` quando esiste già un piano attivo per lo stesso country **non sostituisce** il piano attivo esistente — il nuovo piano nasce con `active:false` e resta nello storico (riattivabile a mano in seguito), senza chiamare la RPC di swap. Lo swap avviene solo se il nuovo piano ha uno stato diverso da `DRAFT` (comportamento originale invariato in quel caso). Se il country non ha ancora nessun piano attivo, il comportamento resta invariato in entrambi i casi (insert normale `active:true`, nessuna RPC).
+
+Lato UI (`ObjectivePlanDialog.tsx`), il toast di conferma dopo il salvataggio distingue i due esiti: se il piano creato resta inattivo per questo motivo, mostra un messaggio dedicato ("Piano creato come bozza — resta INATTIVO: il piano già attivo per questo country non è stato sostituito") invece del generico "Obiettivo creato".
+
+Verificato manualmente in dev (2026-07-22): piano DRAFT creato con un piano ASSIGNED già attivo → l'ASSIGNED resta attivo, il DRAFT va in storico, toast dedicato mostrato; piano non-DRAFT creato nelle stesse condizioni → swap regolare come da comportamento originale.
+
 ---
 
 ## Step 4 — Filtri/liste esistenti

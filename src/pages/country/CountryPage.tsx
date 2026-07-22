@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Pencil, Trash2, Target, RotateCcw } from 'lucide-react'
+import { Pencil, Trash2, Target, RotateCcw, Copy } from 'lucide-react'
 
 import { countryApi, periodApi, objectivePlanApi } from '@/lib/api'
 
@@ -19,6 +19,7 @@ export function CountryPage() {
   const [plans, setPlans] = useState<ObjectivePlan[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogState, setDialogState] = useState<{ item: ObjectivePlan | null; countryId: number } | null>(null)
+  const [duplicateItem, setDuplicateItem] = useState<ObjectivePlan | null>(null)
   const [deleteItem, setDeleteItem] = useState<ObjectivePlan | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [expandedCountryIds, setExpandedCountryIds] = useState<Set<number>>(new Set())
@@ -91,8 +92,11 @@ export function CountryPage() {
               <div className="flex items-center gap-1">
                 <Badge variant="secondary">{activePlan.ObjectivePlanName}</Badge>
                 <StatusPill status={activePlan.ObjectiveStatus} />
-                <Button variant="ghost" size="icon" title="Modifica" onClick={() => setDialogState({ item: activePlan, countryId: r.CountryId })}>
+                <Button variant="ghost" size="icon" title="Modifica" onClick={() => { setDuplicateItem(null); setDialogState({ item: activePlan, countryId: r.CountryId }) }}>
                   <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" title="Duplica" onClick={() => { setDuplicateItem(activePlan); setDialogState({ item: null, countryId: r.CountryId }) }}>
+                  <Copy className="h-3.5 w-3.5" />
                 </Button>
                 <Button variant="ghost" size="icon" title="Elimina" onClick={() => setDeleteItem(activePlan)} className="text-red-400 hover:text-red-600 hover:bg-red-50">
                   <Trash2 className="h-3.5 w-3.5" />
@@ -115,8 +119,11 @@ export function CountryPage() {
                         <Button variant="ghost" size="icon" title="Riattiva" onClick={() => handleReactivate(r.CountryId, plan.ObjectivePlanId)}>
                           <RotateCcw className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" title="Modifica" onClick={() => setDialogState({ item: plan, countryId: r.CountryId })}>
+                        <Button variant="ghost" size="icon" title="Modifica" onClick={() => { setDuplicateItem(null); setDialogState({ item: plan, countryId: r.CountryId }) }}>
                           <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Duplica" onClick={() => { setDuplicateItem(plan); setDialogState({ item: null, countryId: r.CountryId }) }}>
+                          <Copy className="h-3.5 w-3.5" />
                         </Button>
                         <Button variant="ghost" size="icon" title="Elimina" onClick={() => setDeleteItem(plan)} className="text-red-400 hover:text-red-600 hover:bg-red-50">
                           <Trash2 className="h-3.5 w-3.5" />
@@ -137,7 +144,7 @@ export function CountryPage() {
         <div className="flex justify-end">
           <Button
             variant="ghost" size="icon" title="Assegna Obiettivo"
-            onClick={() => setDialogState({ item: null, countryId: r.CountryId })}
+            onClick={() => { setDuplicateItem(null); setDialogState({ item: null, countryId: r.CountryId }) }}
             className="text-purple-400 hover:text-purple-600 hover:bg-purple-50"
           >
             <Target className="h-4 w-4" />
@@ -165,6 +172,7 @@ export function CountryPage() {
       <ObjectivePlanDialog
         open={!!dialogState}
         item={dialogState?.item ?? null}
+        duplicateFrom={duplicateItem}
         periods={periods}
         countries={countries}
         scope="filiale"

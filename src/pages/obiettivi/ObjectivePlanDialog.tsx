@@ -63,9 +63,10 @@ export interface ObjectivePlanDialogProps {
   open: boolean; item: ObjectivePlan | null; periods: Period[]; countries: Country[]
   onClose: () => void; onSuccess: () => void
   scope?: ObjectivePlanScope; lockedCountryId?: number
+  duplicateFrom?: ObjectivePlan | null
 }
 
-export function ObjectivePlanDialog({ open, item, periods, countries, onClose, onSuccess, scope = 'individual', lockedCountryId }: ObjectivePlanDialogProps) {
+export function ObjectivePlanDialog({ open, item, periods, countries, onClose, onSuccess, scope = 'individual', lockedCountryId, duplicateFrom }: ObjectivePlanDialogProps) {
   const manuallyEditedRef = useRef(false)
   const { register, handleSubmit, reset, control, setValue, formState: { errors, isSubmitting } } = useForm<ObjectivePlanFormValues>({
     resolver: zodResolver(ObjectivePlanSchema),
@@ -83,18 +84,19 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
 
   useEffect(() => {
     if (!open) return
-    manuallyEditedRef.current = !!item
+    const source = item ?? duplicateFrom ?? null
+    manuallyEditedRef.current = !!source
     reset({
-      PeriodId: item?.PeriodId ?? (undefined as unknown as number),
-      CountryIds: lockedCountryId ? [lockedCountryId] : (item?.ObjectivePlanCountry?.map((c) => c.CountryId) ?? []),
-      ObjectivePlanName: item?.ObjectivePlanName ?? '',
-      ObjectiveStatus: item?.ObjectiveStatus ?? 'DRAFT',
+      PeriodId: source?.PeriodId ?? (undefined as unknown as number),
+      CountryIds: lockedCountryId ? [lockedCountryId] : (source?.ObjectivePlanCountry?.map((c) => c.CountryId) ?? []),
+      ObjectivePlanName: source?.ObjectivePlanName ?? '',
+      ObjectiveStatus: item ? item.ObjectiveStatus : 'DRAFT',
       ObjectivePlanScope: scope,
       Thresholds: Array.from({ length: DEFAULT_THRESHOLD_ROWS }, () => ({ ...emptyThreshold })),
     })
 
-    if (!item) return
-    objectivePlanApi.get(item.ObjectivePlanId).then(({ data, error }) => {
+    if (!source) return
+    objectivePlanApi.get(source.ObjectivePlanId).then(({ data, error }) => {
       if (error) { toast.error(error.message); return }
       const loaded = ((data as ObjectivePlan | null)?.ObjectiveThreshold ?? []).map((t) => ({
         ObjectiveThresholdRevenueValue: t.ObjectiveThresholdRevenueValue,
@@ -105,7 +107,7 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
       }))
       replace(loaded.length ? loaded : Array.from({ length: DEFAULT_THRESHOLD_ROWS }, () => ({ ...emptyThreshold })))
     })
-  }, [open, item, reset, replace, scope, lockedCountryId])
+  }, [open, item, duplicateFrom, reset, replace, scope, lockedCountryId])
 
   useEffect(() => {
     if (!open || manuallyEditedRef.current) return
@@ -117,15 +119,24 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
   }, [watchedCountryIds, countries, open, setValue])
 
   async function onSubmit(values: ObjectivePlanFormValues) {
-    const { error } = item ? await objectivePlanApi.update(item.ObjectivePlanId, values) : await objectivePlanApi.create(values)
-    if (error) { toast.error(error.message); return }
-    toast.success(item ? 'Obiettivo aggiornato' : 'Obiettivo creato'); onSuccess(); onClose()
+    if (item) {
+      const { error } = await objectivePlanApi.update(item.ObjectivePlanId, values)
+      if (error) { toast.error(error.message); return }
+      toast.success('Obiettivo aggiornato')
+    } else {
+      const { error, stayedInactive } = await objectivePlanApi.create(values)
+      if (error) { toast.error(error.message); return }
+      toast.success(stayedInactive
+        ? 'Piano creato come bozza — resta INATTIVO: il piano già attivo per questo country non è stato sostituito'
+        : 'Obiettivo creato')
+    }
+    onSuccess(); onClose()
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{item ? 'Modifica Obiettivo' : 'Nuovo Obiettivo'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{item ? 'Modifica Obiettivo' : duplicateFrom ? 'Duplica Obiettivo' : 'Nuovo Obiettivo'}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
             <Label>Periodo</Label>

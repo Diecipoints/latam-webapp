@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Pencil, Trash2, Plus, Eye } from 'lucide-react'
+import { Pencil, Trash2, Plus, Eye, Copy } from 'lucide-react'
 
 import { objectivePlanApi, periodApi, countryApi } from '@/lib/api'
 import type { ObjectiveStatus } from '@/lib/database.types'
@@ -34,6 +34,7 @@ export function ObiettiviPage() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editItem, setEditItem] = useState<ObjectivePlan | null>(null)
+  const [duplicateItem, setDuplicateItem] = useState<ObjectivePlan | null>(null)
   const [deleteItem, setDeleteItem] = useState<ObjectivePlan | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [filterPeriod, setFilterPeriod] = useState('tutti')
@@ -79,7 +80,8 @@ export function ObiettiviPage() {
       cell: (r) => (
         <div className="flex justify-end gap-0.5">
           <Button variant="ghost" size="icon" asChild title="Dettaglio"><Link to={`/obiettivi/${r.ObjectivePlanId}`}><Eye className="h-4 w-4" /></Link></Button>
-          <Button variant="ghost" size="icon" onClick={() => { setEditItem(r); setDialogOpen(true) }} title="Modifica"><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => { setEditItem(r); setDuplicateItem(null); setDialogOpen(true) }} title="Modifica"><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => { setEditItem(null); setDuplicateItem(r); setDialogOpen(true) }} title="Duplica"><Copy className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" onClick={() => setDeleteItem(r)} title="Elimina" className="text-red-400 hover:text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
         </div>
       ),
@@ -90,7 +92,7 @@ export function ObiettiviPage() {
     <div className="p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Obiettivi</h1>
-        <Button onClick={() => { setEditItem(null); setDialogOpen(true) }}>
+        <Button onClick={() => { setEditItem(null); setDuplicateItem(null); setDialogOpen(true) }}>
           <Plus className="h-4 w-4" /> Nuovo Obiettivo
         </Button>
       </div>
@@ -125,7 +127,7 @@ export function ObiettiviPage() {
         />
       </div>
 
-      <ObjectivePlanDialog open={dialogOpen} item={editItem} periods={periods} countries={countries} onClose={() => setDialogOpen(false)} onSuccess={load} />
+      <ObjectivePlanDialog open={dialogOpen} item={editItem} duplicateFrom={duplicateItem} periods={periods} countries={countries} onClose={() => setDialogOpen(false)} onSuccess={load} />
 
       <AlertDialog open={!!deleteItem} onOpenChange={(v) => { if (!v) setDeleteItem(null) }}>
         <AlertDialogContent>
