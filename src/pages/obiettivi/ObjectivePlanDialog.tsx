@@ -18,7 +18,7 @@ export type Period = Database['public']['Tables']['Period']['Row']
 export type Country = Database['public']['Tables']['Country']['Row']
 export type ObjectivePlan = Database['public']['Tables']['ObjectivePlan']['Row'] & {
   Period?: { PeriodDescription: string; PeriodYear: number } | null
-  ObjectivePlanCountry?: { CountryId: number; Country?: { CountryName: string } | null }[]
+  ObjectivePlanCountry?: { CountryId: number; active?: boolean; Country?: { CountryName: string } | null }[]
   CollaboratorObjectivePlan?: { CollaboratorId: number }[]
   ObjectiveThreshold?: Database['public']['Tables']['ObjectiveThreshold']['Row'][]
 }

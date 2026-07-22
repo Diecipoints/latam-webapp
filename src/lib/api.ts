@@ -177,7 +177,7 @@ export const objectivePlanApi = {
   list: async (filters?: { collaboratorId?: number; periodId?: number; status?: ObjectiveStatus; scope?: ObjectivePlanScope }) => {
     let q = supabase
       .from('ObjectivePlan')
-      .select('*, Period(PeriodDescription, PeriodYear), ObjectivePlanCountry(CountryId, Country(CountryName)), CollaboratorObjectivePlan(CollaboratorId)')
+      .select('*, Period(PeriodDescription, PeriodYear), ObjectivePlanCountry(CountryId, active, Country(CountryName)), CollaboratorObjectivePlan(CollaboratorId)')
       .order('ObjectivePlanId', { ascending: false })
     if (filters?.collaboratorId) {
       const { data: assigned } = await supabase
@@ -211,11 +211,36 @@ export const objectivePlanApi = {
     const { data: plan, error: planError } = await supabase.from('ObjectivePlan').insert(planData).select().single()
     if (planError || !plan) return { data: null, error: planError }
 
+    let hasExistingActiveFiliale = false
+    if (planData.ObjectivePlanScope === 'filiale' && CountryIds.length === 1) {
+      const { data: existing } = await supabase
+        .from('ObjectivePlanCountry')
+        .select('ObjectivePlanCountryId')
+        .eq('CountryId', CountryIds[0])
+        .eq('scope', 'filiale')
+        .eq('active', true)
+        .maybeSingle()
+      hasExistingActiveFiliale = !!existing
+    }
+
     const [{ error: countryError }, { error: thresholdError }] = await Promise.all([
-      supabase.from('ObjectivePlanCountry').insert(CountryIds.map((CountryId) => ({ ObjectivePlanId: plan.ObjectivePlanId, CountryId }))),
+      supabase.from('ObjectivePlanCountry').insert(CountryIds.map((CountryId) => ({
+        ObjectivePlanId: plan.ObjectivePlanId,
+        CountryId,
+        ...(hasExistingActiveFiliale ? { active: false } : {}),
+      }))),
       supabase.from('ObjectiveThreshold').insert(Thresholds.map((t) => ({ ObjectivePlanId: plan.ObjectivePlanId, ...t }))),
     ])
     if (countryError || thresholdError) return { data: null, error: countryError ?? thresholdError }
+
+    if (hasExistingActiveFiliale) {
+      const { error: swapError } = await supabase.rpc('swap_active_filiale_plan', {
+        p_country_id: CountryIds[0],
+        p_new_objective_plan_id: plan.ObjectivePlanId,
+      })
+      if (swapError) return { data: null, error: swapError }
+    }
+
     return { data: plan, error: null }
   },
 
@@ -232,9 +257,19 @@ export const objectivePlanApi = {
     if (planError) return { data: null, error: planError }
 
     if (CountryIds) {
+      const { data: existingRows } = await supabase
+        .from('ObjectivePlanCountry')
+        .select('CountryId, active')
+        .eq('ObjectivePlanId', id)
+      const activeByCountry = new Map((existingRows ?? []).map((r) => [r.CountryId, r.active]))
+
       await supabase.from('ObjectivePlanCountry').delete().eq('ObjectivePlanId', id)
       if (CountryIds.length) {
-        const { error } = await supabase.from('ObjectivePlanCountry').insert(CountryIds.map((CountryId) => ({ ObjectivePlanId: id, CountryId })))
+        const { error } = await supabase.from('ObjectivePlanCountry').insert(CountryIds.map((CountryId) => ({
+          ObjectivePlanId: id,
+          CountryId,
+          ...(activeByCountry.has(CountryId) ? { active: activeByCountry.get(CountryId) } : {}),
+        })))
         if (error) return { data: null, error }
       }
     }
@@ -257,6 +292,9 @@ export const objectivePlanApi = {
       return { data: null, error: { message: 'Impossibile eliminare: esistono risultati associati a questo piano obiettivo.' } }
     return supabase.from('ObjectivePlan').delete().eq('ObjectivePlanId', id)
   },
+
+  reactivateFiliale: (countryId: number, objectivePlanId: number) =>
+    supabase.rpc('swap_active_filiale_plan', { p_country_id: countryId, p_new_objective_plan_id: objectivePlanId }),
 }
 
 // ─── CollaboratorObjectivePlan ─────────────────────────────────────────────────

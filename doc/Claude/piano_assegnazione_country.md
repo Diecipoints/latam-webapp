@@ -56,8 +56,8 @@ Applicare manualmente via Supabase SQL Editor, stesso pattern già usato per `mi
 **Punto aperto emerso dal test manuale — RISOLTO (decisione 2026-07-22):**
 Nulla in `CountryPage.tsx` / `ObjectivePlanDialog` / lato DB impedisce di creare più piani `filiale` per lo stesso `CountryId` nello stesso `PeriodId` — non c'è un vincolo `UNIQUE` su Supabase né una validazione pre-submit nel dialog. Delle tre strade elencate in origine (UNIQUE constraint secco / somma in n8n / blocco solo UI), si è scelta una variante più ricca della prima: non un vincolo "per periodo" ma un **vincolo assoluto "un solo piano filiale attivo per country alla volta"**, con storico dei piani disattivati riattivabile. Dettagli completi nella nuova sezione **Step 2.5** più sotto.
 
-**Prossimi step (non ancora iniziati):**
-- Step 2.5 — Vincolo "un solo piano filiale attivo per Country" (schema + RPC + UI): **da fare**, dettagliato sotto
+**Prossimi step:**
+- Step 2.5 — Vincolo "un solo piano filiale attivo per Country" (schema + RPC + UI): **COMPLETATO**, vedi sezione dedicata sotto
 - Step 3 — Bottone "Duplica" su ObjectivePlan: **da fare**
 - Step 4 — Filtri/liste esistenti (badge/tab Individuale/Filiale in `ObiettiviPage.tsx`): **da fare**
 
@@ -147,12 +147,31 @@ La funzione RPC garantisce che l'operazione sia atomica (tutto o niente). Il con
 - Elenco piani storici (disattivati) associati al country, riattivabili con un click
 - Azione "cambia piano" = seleziona un piano storico esistente OPPURE crea uno nuovo → il sistema esegue lo swap via RPC
 
-### Prossimi step tecnici (non ancora iniziati)
+### Implementazione (2026-07-22)
 
-1. Definire dove va il campo `active` nello schema (probabilmente `ObjectivePlanCountry`) e scrivere la migrazione
-2. Scrivere la funzione RPC `swap_active_plan(country_id, new_plan_id)` con constraint unique parziale
-3. Aggiornare `CountryPage.tsx`: sezione piano attivo + lista storico riattivabile
-4. Solo dopo questo: tornare al nodo n8n "Somma Premio Filiale" (oggi forzato a 0) per implementare il calcolo reale delle soglie, ora che l'assegnazione Piano→Country è garantita univoca
+- ✅ Migrazione SQL applicata manualmente su Supabase (`step2.5_migrazione.sql`, non versionato nel repo): colonna `active` boolean (default `true`) e colonna `scope` denormalizzata (sincronizzata via trigger `trg_sync_objective_plan_country_scope` da `ObjectivePlan.ObjectivePlanScope`) su `ObjectivePlanCountry`; unique index parziale `ObjectivePlanCountry_active_filiale_per_country` su `CountryId` filtrato `active=true AND scope='filiale'`; funzione RPC `swap_active_filiale_plan(p_country_id, p_new_objective_plan_id)`. Verificato pre-migrazione: 0 piani filiale esistenti, nessun dato storico da sistemare.
+- ✅ `database.types.ts` aggiornato con `active`/`scope` su `ObjectivePlanCountry` e la funzione `swap_active_filiale_plan` in `Functions` (commit `8c6ee7c`). Nessuna modifica a `schemas.ts`: quei campi sono gestiti lato DB/RPC, non passano da validazione form.
+- ✅ `api.ts`:
+  - `objectivePlanApi.list` include `active` nella select `ObjectivePlanCountry`
+  - nuovo `objectivePlanApi.reactivateFiliale(countryId, objectivePlanId)` → wrapper su `supabase.rpc('swap_active_filiale_plan', ...)`
+  - `objectivePlanApi.create`: per `scope='filiale'` con un solo `CountryId`, se esiste già un piano attivo per quel country la nuova riga `ObjectivePlanCountry` viene inserita con `active:false` esplicito e poi promossa via RPC (swap atomico); se il country non ha ancora un piano attivo, insert normale con `active:true` di default, nessuna RPC. Flusso `individual` non toccato.
+  - `objectivePlanApi.update`: bug scoperto durante l'implementazione e corretto — il delete+reinsert delle righe `ObjectivePlanCountry` ad ogni modifica resettava `active` al default `true`, rischiando di riattivare silenziosamente un piano storico in edit. Ora legge gli `active` esistenti per `CountryId` prima del delete e li ripropaga sulle righe reinserite.
+- ✅ `ObjectivePlanDialog.tsx`: tipo `ObjectivePlan` esteso con `active?: boolean` su `ObjectivePlanCountry`.
+- ✅ `CountryPage.tsx`: raggruppamento piani per country ora distingue `active` da `historical` (`Map<CountryId, { active, historical[] }>` invece di lista piatta); colonna "Piani Filiale" mostra il piano attivo in evidenza, con storico espandibile ("Mostra/Nascondi storico (n)") e bottone "Riattiva" (icona `RotateCcw`) su ogni piano storico; dialog di conferma eliminazione mostra un avviso ambrato aggiuntivo quando il piano da eliminare è quello attivo del country.
+- ✅ `tsc --noEmit` pulito dopo ogni modifica.
+- ✅ **Verifica manuale in dev completata (2026-07-22)** — tutti i controlli superati:
+  1. Creazione primo piano filiale per un country → appare attivo
+  2. Creazione secondo piano filiale stesso country/periodo → swap via RPC: il nuovo diventa attivo, il primo va in storico
+  3. Riattivazione del piano storico via bottone "Riattiva" → torna attivo, l'altro va in storico
+  4. Modifica (Pencil) del piano attivo (soglia) → `active` preservato correttamente dopo il salvataggio (fix di `update()` verificato)
+  5. Eliminazione del piano attivo → warning ambrato mostrato nel dialog di conferma prima dell'eliminazione
+
+**Nota:** le modifiche a `api.ts`, `CountryPage.tsx` e `ObjectivePlanDialog.tsx` di questa fase sono al momento **non committate** (solo verificate in dev) — commit lasciato a te.
+
+**Step 2.5: COMPLETATO** (implementazione + validazione manuale in dev). Resta aperto solo il punto 4 sotto.
+
+**Prossimo step tecnico:**
+4. Tornare al nodo n8n "Somma Premio Filiale" (oggi forzato a 0) per implementare il calcolo reale delle soglie, ora che l'assegnazione Piano→Country è garantita univoca e lo swap è validato end-to-end
 
 ---
 
