@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
-const N8N_WEBHOOK = 'https://drinks-describes-wine-gdp.trycloudflare.com/webhook/fafdd9af-c7ad-40e7-8e4f-8c36869e1d4b'
+const N8N_WEBHOOK = 'https://n8n.diecipoints.info/webhook/fafdd9af-c7ad-40e7-8e4f-8c36869e1d4b'
 const CUATRIMESTRI = (year: number) => [
   `1er Cuatrimestre ${year}`,
   `2do Cuatrimestre ${year}`,
