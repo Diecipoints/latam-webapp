@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
-import { Pencil, Trash2, Plus, Eye, Rocket, Target, Play, FileSearch } from 'lucide-react'
+import { Pencil, Trash2, Plus, Eye, Rocket, Target, Play, FileSearch, ExternalLink } from 'lucide-react'
 
 import { collaboratorApi, countryApi, collaboratorTypeApi, objectivePlanApi, periodApi, collaboratorObjectivePlanApi } from '@/lib/api'
 import { CollaboratorSchema, type CollaboratorFormValues } from '@/lib/schemas'
@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 const N8N_WEBHOOK = 'https://n8n.diecipoints.info/webhook/fafdd9af-c7ad-40e7-8e4f-8c36869e1d4b'
+const N8N_CALCOLO_WEBHOOK = 'https://n8n.diecipoints.info/webhook/b7190b76-ae97-4573-bbd5-e8701165a700'
 const CUATRIMESTRI = (year: number) => [
   `1er Cuatrimestre ${year}`,
   `2do Cuatrimestre ${year}`,
@@ -179,34 +180,126 @@ interface StartCalculationDialogProps {
   open: boolean; collaborator: Collaborator | null; periods: Period[]; onClose: () => void
 }
 
+type CalcResult =
+  | { status: 'success'; pdfUrl: string | null }
+  | { status: 'not-found'; message: string }
+
 function StartCalculationDialog({ open, collaborator, periods, onClose }: StartCalculationDialogProps) {
   const [periodId, setPeriodId] = useState('')
+  const [cuatrimestre, setCuatrimestre] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState<CalcResult | null>(null)
 
-  useEffect(() => { if (open) setPeriodId('') }, [open])
+  useEffect(() => {
+    if (open) { setPeriodId(''); setCuatrimestre(''); setResult(null); setSubmitting(false) }
+  }, [open])
 
   const selectedPeriod = periods.find((p) => p.PeriodId.toString() === periodId)
+  const cuatrimestreOptions = CUATRIMESTRI(selectedPeriod?.PeriodYear ?? new Date().getFullYear())
+
+  useEffect(() => { setCuatrimestre('') }, [periodId])
+
+  const canSubmit = !!collaborator && !!selectedPeriod && !!cuatrimestre
+
+  async function handleAvvia() {
+    if (!collaborator || !selectedPeriod || !cuatrimestre) {
+      toast.error('Parametri mancanti: seleziona periodo e cuatrimestre.')
+      return
+    }
+    setSubmitting(true)
+    setResult(null)
+    try {
+      const payload = {
+        collaboratorId: collaborator.CollaboratorId.toString(),
+        periodo: selectedPeriod.PeriodDescription,
+        anno: selectedPeriod.PeriodYear,
+        cuatrimestre,
+        collaboratoreName: collaborator.CollaboratorName,
+      }
+      const res = await fetch(N8N_CALCOLO_WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json().catch(() => null)
+
+      if (res.status === 404) {
+        const message = (data && typeof data.error === 'string' && data.error) || 'Dati Qlik non trovati per questo collaboratore e periodo'
+        setResult({ status: 'not-found', message })
+        return
+      }
+      if (!res.ok || !data?.success) {
+        toast.error((data && typeof data.error === 'string' && data.error) || 'Errore durante il calcolo del premio.')
+        return
+      }
+      setResult({ status: 'success', pdfUrl: typeof data.pdfUrl === 'string' ? data.pdfUrl : null })
+      toast.success('Premio calcolato correttamente')
+    } catch {
+      toast.error('Errore di connessione al servizio di calcolo.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Avvia Calcolo</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Periodo</Label>
-            <Select value={periodId} onValueChange={setPeriodId}>
-              <SelectTrigger><SelectValue placeholder="Seleziona periodo" /></SelectTrigger>
-              <SelectContent>
-                {periods.map((p) => <SelectItem key={p.PeriodId} value={p.PeriodId.toString()}>{p.PeriodDescription}</SelectItem>)}
-              </SelectContent>
-            </Select>
+
+        {result?.status === 'success' ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              Premio calcolato correttamente per <strong>{collaborator?.CollaboratorName}</strong>.
+            </p>
+            {result.pdfUrl && (
+              <a
+                href={result.pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+              >
+                <ExternalLink className="h-4 w-4" /> Apri PDF risultato
+              </a>
+            )}
           </div>
-          <p className="text-sm text-gray-600">
-            Avvia calcolo per <strong>{collaborator?.CollaboratorName}</strong> - {selectedPeriod ? selectedPeriod.PeriodDescription : 'seleziona un periodo'}
-          </p>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Periodo</Label>
+              <Select value={periodId} onValueChange={setPeriodId} disabled={submitting}>
+                <SelectTrigger><SelectValue placeholder="Seleziona periodo" /></SelectTrigger>
+                <SelectContent>
+                  {periods.map((p) => <SelectItem key={p.PeriodId} value={p.PeriodId.toString()}>{p.PeriodDescription}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cuatrimestre</Label>
+              <Select value={cuatrimestre} onValueChange={setCuatrimestre} disabled={submitting || !selectedPeriod}>
+                <SelectTrigger><SelectValue placeholder="Seleziona cuatrimestre" /></SelectTrigger>
+                <SelectContent>
+                  {cuatrimestreOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-sm text-gray-600">
+              Avvia calcolo per <strong>{collaborator?.CollaboratorName}</strong> - {selectedPeriod ? selectedPeriod.PeriodDescription : 'seleziona un periodo'}
+            </p>
+            {result?.status === 'not-found' && (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                {result.message}. Carica prima lo screenshot Qlik del collaboratore per questo periodo (Inbox Processor).
+              </p>
+            )}
+          </div>
+        )}
+
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>Annulla</Button>
-          <Button type="button" disabled={!periodId} onClick={() => alert('Funzionalità in arrivo')}>Avvia</Button>
+          <Button type="button" variant="outline" onClick={onClose}>{result?.status === 'success' ? 'Chiudi' : 'Annulla'}</Button>
+          {result?.status !== 'success' && (
+            <Button type="button" disabled={!canSubmit || submitting} onClick={handleAvvia}>
+              {submitting ? 'Calcolo in corso...' : 'Avvia'}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
