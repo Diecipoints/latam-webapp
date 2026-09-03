@@ -185,25 +185,26 @@ type CalcResult =
   | { status: 'not-found'; message: string }
 
 function StartCalculationDialog({ open, collaborator, periods, onClose }: StartCalculationDialogProps) {
-  const [periodId, setPeriodId] = useState('')
-  const [cuatrimestre, setCuatrimestre] = useState('')
+  const [selectedKey, setSelectedKey] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<CalcResult | null>(null)
 
   useEffect(() => {
-    if (open) { setPeriodId(''); setCuatrimestre(''); setResult(null); setSubmitting(false) }
+    if (open) { setSelectedKey(''); setResult(null); setSubmitting(false) }
   }, [open])
 
-  const selectedPeriod = periods.find((p) => p.PeriodId.toString() === periodId)
-  const cuatrimestreOptions = CUATRIMESTRI(selectedPeriod?.PeriodYear ?? new Date().getFullYear())
+  const cuatrimestreOptions = periods
+    .slice()
+    .sort((a, b) => b.PeriodYear - a.PeriodYear)
+    .flatMap((p) => CUATRIMESTRI(p.PeriodYear).map((c) => ({ key: `${p.PeriodId}__${c}`, label: c, period: p })))
 
-  useEffect(() => { setCuatrimestre('') }, [periodId])
+  const selected = cuatrimestreOptions.find((o) => o.key === selectedKey)
 
-  const canSubmit = !!collaborator && !!selectedPeriod && !!cuatrimestre
+  const canSubmit = !!collaborator && !!selected
 
   async function handleAvvia() {
-    if (!collaborator || !selectedPeriod || !cuatrimestre) {
-      toast.error('Parametri mancanti: seleziona periodo e cuatrimestre.')
+    if (!collaborator || !selected) {
+      toast.error('Parametri mancanti: seleziona un cuatrimestre.')
       return
     }
     setSubmitting(true)
@@ -211,9 +212,9 @@ function StartCalculationDialog({ open, collaborator, periods, onClose }: StartC
     try {
       const payload = {
         collaboratorId: collaborator.CollaboratorId.toString(),
-        periodo: selectedPeriod.PeriodDescription,
-        anno: selectedPeriod.PeriodYear,
-        cuatrimestre,
+        periodo: selected.period.PeriodDescription,
+        anno: selected.period.PeriodYear,
+        cuatrimestre: selected.label,
         collaboratoreName: collaborator.CollaboratorName,
       }
       const res = await fetch(N8N_CALCOLO_WEBHOOK, {
@@ -265,25 +266,16 @@ function StartCalculationDialog({ open, collaborator, periods, onClose }: StartC
         ) : (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Periodo</Label>
-              <Select value={periodId} onValueChange={setPeriodId} disabled={submitting}>
-                <SelectTrigger><SelectValue placeholder="Seleziona periodo" /></SelectTrigger>
-                <SelectContent>
-                  {periods.map((p) => <SelectItem key={p.PeriodId} value={p.PeriodId.toString()}>{p.PeriodDescription}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
               <Label>Cuatrimestre</Label>
-              <Select value={cuatrimestre} onValueChange={setCuatrimestre} disabled={submitting || !selectedPeriod}>
+              <Select value={selectedKey} onValueChange={setSelectedKey} disabled={submitting}>
                 <SelectTrigger><SelectValue placeholder="Seleziona cuatrimestre" /></SelectTrigger>
                 <SelectContent>
-                  {cuatrimestreOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {cuatrimestreOptions.map((o) => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <p className="text-sm text-gray-600">
-              Avvia calcolo per <strong>{collaborator?.CollaboratorName}</strong> - {selectedPeriod ? selectedPeriod.PeriodDescription : 'seleziona un periodo'}
+              Avvia calcolo per <strong>{collaborator?.CollaboratorName}</strong> - {selected ? selected.label : 'seleziona un cuatrimestre'}
             </p>
             {result?.status === 'not-found' && (
               <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
