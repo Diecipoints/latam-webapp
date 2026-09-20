@@ -454,6 +454,7 @@ export function CollaboratoriPage() {
     setOnboardingLoading(item.CollaboratorId)
     try {
       const payload = {
+        collaboratorId: item.CollaboratorId.toString(),
         collaboratorName: item.CollaboratorName,
         country: item.Country?.CountryName ?? '',
         collaboratorType: item.CollaboratorType?.CollaboratorTypeName ?? '',
