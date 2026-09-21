@@ -79,6 +79,8 @@ export interface Database {
           ObjectivePlanId: number
           PeriodId: number
           ObjectivePlanName: string
+          ObjectivePlanSectionTitle: string | null
+          ObjectivePlanMetricDescription: string | null
           ObjectiveStatus: ObjectiveStatus
           ObjectivePlanScope: ObjectivePlanScope
         }
@@ -86,6 +88,8 @@ export interface Database {
           ObjectivePlanId?: number
           PeriodId: number
           ObjectivePlanName: string
+          ObjectivePlanSectionTitle?: string | null
+          ObjectivePlanMetricDescription?: string | null
           ObjectiveStatus: ObjectiveStatus
           ObjectivePlanScope?: ObjectivePlanScope
         }
@@ -93,6 +97,8 @@ export interface Database {
           ObjectivePlanId?: number
           PeriodId?: number
           ObjectivePlanName?: string
+          ObjectivePlanSectionTitle?: string | null
+          ObjectivePlanMetricDescription?: string | null
           ObjectiveStatus?: ObjectiveStatus
           ObjectivePlanScope?: ObjectivePlanScope
         }

@@ -54,6 +54,8 @@ export const ObjectivePlanSchema = z.object({
   PeriodId: z.number({ message: 'Periodo obbligatorio' }).int().positive(),
   CountryIds: z.array(z.number().int().positive()).min(1, 'Seleziona almeno un paese'),
   ObjectivePlanName: z.string().min(1, 'Nome piano obbligatorio'),
+  ObjectivePlanSectionTitle: z.string().trim().min(1, 'Titolo sezione obbligatorio'),
+  ObjectivePlanMetricDescription: z.string().trim().min(1, 'Descrizione metrica obbligatoria'),
   ObjectiveStatus: ObjectiveStatusEnum,
   ObjectivePlanScope: ObjectivePlanScopeEnum,
   Thresholds: z.array(ObjectiveThresholdSchema).min(1, 'Aggiungi almeno una soglia'),

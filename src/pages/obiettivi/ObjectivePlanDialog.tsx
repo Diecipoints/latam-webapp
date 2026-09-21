@@ -74,6 +74,8 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
       PeriodId: undefined as unknown as number,
       CountryIds: [],
       ObjectivePlanName: '',
+      ObjectivePlanSectionTitle: '',
+      ObjectivePlanMetricDescription: '',
       ObjectiveStatus: 'DRAFT',
       ObjectivePlanScope: scope,
       Thresholds: [],
@@ -91,6 +93,8 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
       PeriodId: source?.PeriodId ?? (undefined as unknown as number),
       CountryIds: lockedCountryId ? [lockedCountryId] : (source?.ObjectivePlanCountry?.map((c) => c.CountryId) ?? []),
       ObjectivePlanName: source?.ObjectivePlanName ?? '',
+      ObjectivePlanSectionTitle: source?.ObjectivePlanSectionTitle ?? '',
+      ObjectivePlanMetricDescription: source?.ObjectivePlanMetricDescription ?? '',
       ObjectiveStatus: item ? item.ObjectiveStatus : 'DRAFT',
       ObjectivePlanScope: scope,
       Thresholds: Array.from({ length: DEFAULT_THRESHOLD_ROWS }, () => ({ ...emptyThreshold })),
@@ -188,6 +192,18 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
             <Label htmlFor="ObjectivePlanName">Nome piano</Label>
             <Input id="ObjectivePlanName" {...register('ObjectivePlanName', { onChange: () => { manuallyEditedRef.current = true } })} />
             {errors.ObjectivePlanName && <p className="text-sm text-destructive">{errors.ObjectivePlanName.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="ObjectivePlanSectionTitle">Titolo sezione</Label>
+            <Input id="ObjectivePlanSectionTitle" placeholder="es. FACTURACION KEY ACCOUNTS" {...register('ObjectivePlanSectionTitle')} />
+            {errors.ObjectivePlanSectionTitle && <p className="text-sm text-destructive">{errors.ObjectivePlanSectionTitle.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="ObjectivePlanMetricDescription">Descrizione metrica</Label>
+            <Input id="ObjectivePlanMetricDescription" placeholder="es. la facturación neta a cuentas corporativas" {...register('ObjectivePlanMetricDescription')} />
+            {errors.ObjectivePlanMetricDescription && <p className="text-sm text-destructive">{errors.ObjectivePlanMetricDescription.message}</p>}
           </div>
 
           <div className="space-y-2">

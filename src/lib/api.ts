@@ -202,6 +202,8 @@ export const objectivePlanApi = {
   create: async (data: {
     PeriodId: number
     ObjectivePlanName: string
+    ObjectivePlanSectionTitle: string
+    ObjectivePlanMetricDescription: string
     ObjectiveStatus: ObjectiveStatus
     ObjectivePlanScope?: ObjectivePlanScope
     CountryIds: number[]
@@ -249,6 +251,8 @@ export const objectivePlanApi = {
   update: async (id: number, data: Partial<{
     PeriodId: number
     ObjectivePlanName: string
+    ObjectivePlanSectionTitle: string
+    ObjectivePlanMetricDescription: string
     ObjectiveStatus: ObjectiveStatus
     ObjectivePlanScope?: ObjectivePlanScope
     CountryIds: number[]
