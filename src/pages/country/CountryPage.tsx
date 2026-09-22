@@ -186,7 +186,7 @@ export function CountryPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Elimina Piano Filiale</AlertDialogTitle>
             <AlertDialogDescription>
-              Sei sicuro di voler eliminare questo piano? L'operazione non può essere annullata.
+              Sei sicuro di voler eliminare il piano <strong>{deleteItem?.ObjectivePlanName}</strong>? L'operazione non può essere annullata.
               {deleteItem?.ObjectivePlanCountry?.[0]?.active && (
                 <span className="mt-2 block font-medium text-amber-600">
                   Stai eliminando il piano ATTIVO: il country resterà senza premio filiale finché non ne assegni o riattivi un altro.

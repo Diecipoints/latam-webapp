@@ -290,6 +290,14 @@ export const objectivePlanApi = {
   },
 
   delete: async (id: number) => {
+    const { data: plan } = await supabase
+      .from('ObjectivePlan')
+      .select('ObjectiveStatus')
+      .eq('ObjectivePlanId', id)
+      .single()
+    if (plan?.ObjectiveStatus === 'CLOSED')
+      return { data: null, error: { message: 'Impossibile eliminare: il piano è chiuso e fa parte dello storico dei premi pagati.' } }
+
     const { count } = await supabase
       .from('Result')
       .select('*', { count: 'exact', head: true })
@@ -309,6 +317,8 @@ export const objectivePlanApi = {
       return { data: null, error: { message: `Impossibile eliminare: il piano è ancora assegnato a: ${names}. Rimuovi prima l'assegnazione dai singoli collaboratori.` } }
     }
 
+    await supabase.from('ObjectiveThreshold').delete().eq('ObjectivePlanId', id)
+    await supabase.from('ObjectivePlanCountry').delete().eq('ObjectivePlanId', id)
     return supabase.from('ObjectivePlan').delete().eq('ObjectivePlanId', id)
   },
 

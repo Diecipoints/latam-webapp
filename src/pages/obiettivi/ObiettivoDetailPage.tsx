@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
@@ -136,6 +136,7 @@ function ResultDialog({ open, item, objectivePlanId, onClose, onSuccess }: Resul
 
 export function ObiettivoDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const objectivePlanId = Number(id)
   const [objective, setObjective] = useState<ObjectivePlan | null>(null)
   const [results, setResults] = useState<Result[]>([])
@@ -145,6 +146,8 @@ export function ObiettivoDetailPage() {
   const [editResult, setEditResult] = useState<Result | null>(null)
   const [deleteResult, setDeleteResult] = useState<Result | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [deletePlanOpen, setDeletePlanOpen] = useState(false)
+  const [deletingPlan, setDeletingPlan] = useState(false)
 
   useEffect(() => {
     objectivePlanApi.get(objectivePlanId).then(({ data, error }) => {
@@ -172,6 +175,15 @@ export function ObiettivoDetailPage() {
     else { toast.success('Risultato eliminato'); await loadResults() }
     setDeleting(false)
     setDeleteResult(null)
+  }
+
+  async function handleDeletePlan() {
+    setDeletingPlan(true)
+    const { error } = await objectivePlanApi.delete(objectivePlanId)
+    setDeletingPlan(false)
+    if (error) { toast.error(error.message); setDeletePlanOpen(false); return }
+    toast.success('Piano eliminato')
+    navigate('/obiettivi')
   }
 
   const resultColumns: Column<Result>[] = [
@@ -203,11 +215,16 @@ export function ObiettivoDetailPage() {
 
   return (
     <div className="p-5 space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={() => window.history.back()}>
-          <ArrowLeft className="h-4 w-4" /> Indietro
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => window.history.back()}>
+            <ArrowLeft className="h-4 w-4" /> Indietro
+          </Button>
+          <h1 className="text-2xl font-bold text-gray-900">{objective.ObjectivePlanName}</h1>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => setDeletePlanOpen(true)} className="text-red-400 hover:text-red-600 hover:bg-red-50">
+          <Trash2 className="h-4 w-4 mr-1" /> Elimina piano
         </Button>
-        <h1 className="text-2xl font-bold text-gray-900">{objective.ObjectivePlanName}</h1>
       </div>
 
       <div className="bg-white rounded-2xl shadow-md p-5">
@@ -294,6 +311,23 @@ export function ObiettivoDetailPage() {
             <AlertDialogCancel disabled={deleting}>Annulla</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteResult} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deleting ? 'Eliminazione...' : 'Elimina'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deletePlanOpen} onOpenChange={setDeletePlanOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina Piano</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare il piano <strong>{objective.ObjectivePlanName}</strong>? L'operazione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingPlan}>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePlan} disabled={deletingPlan} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingPlan ? 'Eliminazione...' : 'Elimina'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -184,7 +184,7 @@ export function ObiettiviPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Elimina Obiettivo</AlertDialogTitle>
-            <AlertDialogDescription>Sei sicuro di voler eliminare questo obiettivo? L'operazione non può essere annullata.</AlertDialogDescription>
+            <AlertDialogDescription>Sei sicuro di voler eliminare il piano <strong>{deleteItem?.ObjectivePlanName}</strong>? L'operazione non può essere annullata.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Annulla</AlertDialogCancel>
