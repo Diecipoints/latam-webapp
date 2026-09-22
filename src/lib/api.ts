@@ -296,6 +296,19 @@ export const objectivePlanApi = {
       .eq('ObjectivePlanId', id)
     if (count && count > 0)
       return { data: null, error: { message: 'Impossibile eliminare: esistono risultati associati a questo piano obiettivo.' } }
+
+    const { data: links } = await supabase
+      .from('CollaboratorObjectivePlan')
+      .select('Collaborator(CollaboratorName)')
+      .eq('ObjectivePlanId', id)
+    if (links && links.length > 0) {
+      const names = links
+        .map((l) => (l.Collaborator as { CollaboratorName?: string } | null)?.CollaboratorName)
+        .filter((n): n is string => !!n)
+        .join(', ')
+      return { data: null, error: { message: `Impossibile eliminare: il piano è ancora assegnato a: ${names}. Rimuovi prima l'assegnazione dai singoli collaboratori.` } }
+    }
+
     return supabase.from('ObjectivePlan').delete().eq('ObjectivePlanId', id)
   },
 
@@ -309,11 +322,24 @@ export const collaboratorObjectivePlanApi = {
   listByCollaborator: (collaboratorId: number) =>
     supabase
       .from('CollaboratorObjectivePlan')
-      .select('*, ObjectivePlan(ObjectivePlanId, ObjectivePlanName, ObjectivePlanCountry(CountryId, Country(CountryName)), ObjectiveThreshold(*))')
+      .select('*, ObjectivePlan(ObjectivePlanId, ObjectivePlanName, ObjectiveStatus, PeriodId, Period(PeriodDescription, PeriodYear), ObjectivePlanCountry(CountryId, Country(CountryName)), ObjectiveThreshold(*))')
       .eq('CollaboratorId', collaboratorId),
 
   assign: (collaboratorId: number, objectivePlanId: number) =>
     supabase.from('CollaboratorObjectivePlan').insert({ CollaboratorId: collaboratorId, ObjectivePlanId: objectivePlanId }).select().single(),
+
+  remove: async (collaboratorObjectivePlanId: number) => {
+    const { data: link, error: linkError } = await supabase
+      .from('CollaboratorObjectivePlan')
+      .select('ObjectivePlan(ObjectiveStatus)')
+      .eq('CollaboratorObjectivePlanId', collaboratorObjectivePlanId)
+      .single()
+    if (linkError) return { data: null, error: linkError }
+    const status = (link?.ObjectivePlan as { ObjectiveStatus?: ObjectiveStatus } | null)?.ObjectiveStatus
+    if (status === 'CLOSED')
+      return { data: null, error: { message: 'Impossibile rimuovere: il piano è chiuso e fa parte dello storico dei premi pagati.' } }
+    return supabase.from('CollaboratorObjectivePlan').delete().eq('CollaboratorObjectivePlanId', collaboratorObjectivePlanId)
+  },
 }
 
 // ─── Result ───────────────────────────────────────────────────────────────────

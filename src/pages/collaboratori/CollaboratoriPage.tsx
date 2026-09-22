@@ -7,7 +7,7 @@ import { Pencil, Trash2, Plus, Eye, Rocket, Target, Play, FileSearch, ExternalLi
 
 import { collaboratorApi, countryApi, collaboratorTypeApi, objectivePlanApi, periodApi, collaboratorObjectivePlanApi } from '@/lib/api'
 import { CollaboratorSchema, type CollaboratorFormValues } from '@/lib/schemas'
-import type { Database } from '@/lib/database.types'
+import type { Database, ObjectiveStatus } from '@/lib/database.types'
 import { formatThresholdValue } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
@@ -50,6 +50,8 @@ type AssignedObjectivePlan = {
   }) | null
 }
 
+const LOCKED_STATUSES: ObjectiveStatus[] = ['CLOSED']
+
 interface AssignObjectiveDialogProps {
   open: boolean; collaborator: Collaborator | null; plans: ObjectivePlan[]
   onClose: () => void; onSuccess: () => void
@@ -58,44 +60,93 @@ interface AssignObjectiveDialogProps {
 function AssignObjectiveDialog({ open, collaborator, plans, onClose, onSuccess }: AssignObjectiveDialogProps) {
   const [planId, setPlanId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [conflict, setConflict] = useState<AssignedObjectivePlan | null>(null)
 
-  useEffect(() => { if (open) setPlanId('') }, [open])
+  useEffect(() => { if (open) { setPlanId(''); setConflict(null) } }, [open])
 
-  async function handleAssign() {
-    if (!collaborator || !planId) return
-    setSubmitting(true)
+  async function doAssign() {
+    if (!collaborator || !planId) return false
     const { error } = await collaboratorObjectivePlanApi.assign(collaborator.CollaboratorId, Number(planId))
-    setSubmitting(false)
     if (error) {
       toast.error(error.message.includes('duplicate') || error.message.includes('unique')
         ? 'Questo obiettivo è già assegnato a questo collaboratore.'
         : error.message)
+      return false
+    }
+    return true
+  }
+
+  async function handleAssign() {
+    if (!collaborator || !planId) return
+    setSubmitting(true)
+
+    const selectedPlan = plans.find((p) => p.ObjectivePlanId === Number(planId))
+    const { data: existingLinks, error: existingError } = await collaboratorObjectivePlanApi.listByCollaborator(collaborator.CollaboratorId)
+    if (existingError) { toast.error(existingError.message); setSubmitting(false); return }
+    const samePeriod = ((existingLinks ?? []) as unknown as AssignedObjectivePlan[])
+      .find((l) => l.ObjectivePlan && l.ObjectivePlan.PeriodId === selectedPlan?.PeriodId && l.ObjectivePlan.ObjectivePlanId !== selectedPlan?.ObjectivePlanId)
+
+    if (samePeriod) {
+      setConflict(samePeriod)
+      setSubmitting(false)
       return
     }
-    toast.success('Obiettivo assegnato')
-    onSuccess(); onClose()
+
+    if (await doAssign()) { toast.success('Obiettivo assegnato'); onSuccess(); onClose() }
+    setSubmitting(false)
+  }
+
+  async function handleReplace() {
+    if (!conflict) return
+    setSubmitting(true)
+    const { error: removeError } = await collaboratorObjectivePlanApi.remove(conflict.CollaboratorObjectivePlanId)
+    if (removeError) { toast.error(removeError.message); setSubmitting(false); return }
+    if (await doAssign()) { toast.success('Piano sostituito'); onSuccess(); onClose() }
+    setSubmitting(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Assegna Obiettivo</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">Assegna un piano obiettivo a <strong>{collaborator?.CollaboratorName}</strong>.</p>
-          <div className="space-y-1.5">
-            <Label>Piano obiettivo</Label>
-            <Select value={planId} onValueChange={setPlanId}>
-              <SelectTrigger><SelectValue placeholder="Seleziona un piano" /></SelectTrigger>
-              <SelectContent>
-                {plans.map((p) => <SelectItem key={p.ObjectivePlanId} value={p.ObjectivePlanId.toString()}>{p.ObjectivePlanName}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>Annulla</Button>
-          <Button type="button" onClick={handleAssign} disabled={!planId || submitting}>{submitting ? 'Assegnazione...' : 'Assegna'}</Button>
-        </DialogFooter>
+        {conflict ? (
+          <>
+            <div className="space-y-3 text-sm text-gray-600">
+              <p>
+                <strong>{collaborator?.CollaboratorName}</strong> ha già il piano <strong>{conflict.ObjectivePlan?.ObjectivePlanName}</strong> assegnato per lo stesso periodo.
+              </p>
+              <p>Un collaboratore può avere un solo piano per periodo: sostituirlo con il nuovo piano selezionato?</p>
+              {conflict.ObjectivePlan?.ObjectiveStatus === 'SIGNED' && (
+                <p className="font-medium text-amber-700">Attenzione: il piano che verrà rimosso risulta già firmato dal collaboratore.</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setConflict(null)} disabled={submitting}>Annulla</Button>
+              <Button type="button" onClick={handleReplace} disabled={submitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {submitting ? 'Sostituzione...' : 'Sostituisci piano'}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">Assegna un piano obiettivo a <strong>{collaborator?.CollaboratorName}</strong>.</p>
+              <div className="space-y-1.5">
+                <Label>Piano obiettivo</Label>
+                <Select value={planId} onValueChange={setPlanId}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona un piano" /></SelectTrigger>
+                  <SelectContent>
+                    {plans.map((p) => <SelectItem key={p.ObjectivePlanId} value={p.ObjectivePlanId.toString()}>{p.ObjectivePlanName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Annulla</Button>
+              <Button type="button" onClick={handleAssign} disabled={!planId || submitting}>{submitting ? 'Assegnazione...' : 'Assegna'}</Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )
@@ -108,72 +159,126 @@ interface PreviewObjectiveDialogProps {
 function PreviewObjectiveDialog({ open, collaborator, onClose }: PreviewObjectiveDialogProps) {
   const [assigned, setAssigned] = useState<AssignedObjectivePlan[]>([])
   const [loading, setLoading] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<AssignedObjectivePlan | null>(null)
+  const [removing, setRemoving] = useState(false)
 
-  useEffect(() => {
-    if (!open || !collaborator) return
+  function load() {
+    if (!collaborator) return
     setLoading(true)
     collaboratorObjectivePlanApi.listByCollaborator(collaborator.CollaboratorId).then(({ data, error }) => {
       if (error) toast.error(error.message)
       else setAssigned((data ?? []) as unknown as AssignedObjectivePlan[])
       setLoading(false)
     })
+  }
+
+  useEffect(() => {
+    if (!open || !collaborator) return
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, collaborator])
 
+  async function handleRemove() {
+    if (!removeTarget) return
+    setRemoving(true)
+    const { error } = await collaboratorObjectivePlanApi.remove(removeTarget.CollaboratorObjectivePlanId)
+    setRemoving(false)
+    if (error) { toast.error(error.message); setRemoveTarget(null); return }
+    toast.success('Piano rimosso dal collaboratore')
+    setRemoveTarget(null)
+    load()
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Anteprima Obiettivo — {collaborator?.CollaboratorName}</DialogTitle></DialogHeader>
-        {loading ? (
-          <p className="text-sm text-gray-400">Caricamento...</p>
-        ) : assigned.length === 0 ? (
-          <p className="text-sm text-gray-400">Nessun obiettivo assegnato a questo collaboratore.</p>
-        ) : (
-          <div className="space-y-5">
-            {assigned.map((a) => (
-              <div key={a.CollaboratorObjectivePlanId} className="space-y-3">
-                <h3 className="font-semibold text-gray-900">{a.ObjectivePlan?.ObjectivePlanName ?? '—'}</h3>
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Paesi coperti</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {a.ObjectivePlan?.ObjectivePlanCountry?.length
-                      ? a.ObjectivePlan.ObjectivePlanCountry.map((c) => <Badge key={c.CountryId} variant="secondary">{c.Country?.CountryName}</Badge>)
-                      : <span className="text-xs text-gray-400">Nessun paese</span>}
+    <>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Anteprima Obiettivo — {collaborator?.CollaboratorName}</DialogTitle></DialogHeader>
+          {loading ? (
+            <p className="text-sm text-gray-400">Caricamento...</p>
+          ) : assigned.length === 0 ? (
+            <p className="text-sm text-gray-400">Nessun obiettivo assegnato a questo collaboratore.</p>
+          ) : (
+            <div className="space-y-5">
+              {assigned.map((a) => {
+                const locked = a.ObjectivePlan && LOCKED_STATUSES.includes(a.ObjectivePlan.ObjectiveStatus)
+                return (
+                  <div key={a.CollaboratorObjectivePlanId} className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold text-gray-900">{a.ObjectivePlan?.ObjectivePlanName ?? '—'}</h3>
+                      <Button
+                        type="button" variant="ghost" size="sm"
+                        onClick={() => setRemoveTarget(a)}
+                        disabled={!!locked}
+                        title={locked ? 'Un piano chiuso non può essere rimosso: fa parte dello storico dei premi pagati.' : undefined}
+                        className="text-red-400 hover:text-red-600 hover:bg-red-50 disabled:text-gray-300 disabled:hover:bg-transparent"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" /> Rimuovi piano
+                      </Button>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Paesi coperti</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {a.ObjectivePlan?.ObjectivePlanCountry?.length
+                          ? a.ObjectivePlan.ObjectivePlanCountry.map((c) => <Badge key={c.CountryId} variant="secondary">{c.Country?.CountryName}</Badge>)
+                          : <span className="text-xs text-gray-400">Nessun paese</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Soglie</p>
+                      {a.ObjectivePlan?.ObjectiveThreshold?.length ? (
+                        <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                          <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            <tr>
+                              <th className="text-left px-3 py-2">Tipo</th>
+                              <th className="text-right px-3 py-2">Fatturato soglia</th>
+                              <th className="text-right px-3 py-2">Premio</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {a.ObjectivePlan.ObjectiveThreshold.map((t) => (
+                              <tr key={t.ObjectiveThresholdId} className="border-t border-gray-100">
+                                <td className="px-3 py-2">{THRESHOLD_TYPE_LABELS[t.ObjectiveThresholdType]}</td>
+                                <td className="px-3 py-2 text-right">{formatThresholdValue(t.ObjectiveThresholdRevenueValue, t.ObjectiveThresholdRevenueCurrency)}</td>
+                                <td className="px-3 py-2 text-right">{formatThresholdValue(t.ObjectiveThresholdBonusValue, t.ObjectiveThresholdBonusCurrency)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="text-sm text-gray-400">Nessuna soglia definita.</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Soglie</p>
-                  {a.ObjectivePlan?.ObjectiveThreshold?.length ? (
-                    <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-                      <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <tr>
-                          <th className="text-left px-3 py-2">Tipo</th>
-                          <th className="text-right px-3 py-2">Fatturato soglia</th>
-                          <th className="text-right px-3 py-2">Premio</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {a.ObjectivePlan.ObjectiveThreshold.map((t) => (
-                          <tr key={t.ObjectiveThresholdId} className="border-t border-gray-100">
-                            <td className="px-3 py-2">{THRESHOLD_TYPE_LABELS[t.ObjectiveThresholdType]}</td>
-                            <td className="px-3 py-2 text-right">{formatThresholdValue(t.ObjectiveThresholdRevenueValue, t.ObjectiveThresholdRevenueCurrency)}</td>
-                            <td className="px-3 py-2 text-right">{formatThresholdValue(t.ObjectiveThresholdBonusValue, t.ObjectiveThresholdBonusCurrency)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <p className="text-sm text-gray-400">Nessuna soglia definita.</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>Chiudi</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+                )
+              })}
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Chiudi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!removeTarget} onOpenChange={(v) => { if (!v) setRemoveTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rimuovi piano</AlertDialogTitle>
+            <AlertDialogDescription>
+              Rimuovere il piano <strong>{removeTarget?.ObjectivePlan?.ObjectivePlanName}</strong> da <strong>{collaborator?.CollaboratorName}</strong>?
+              Il piano non verrà eliminato, resta disponibile per essere assegnato ad altri collaboratori.
+              {removeTarget?.ObjectivePlan?.ObjectiveStatus === 'SIGNED' && (
+                <span className="block mt-2 font-medium text-amber-700">Attenzione: questo piano risulta già firmato dal collaboratore.</span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removing}>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemove} disabled={removing} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{removing ? 'Rimozione...' : 'Rimuovi'}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 

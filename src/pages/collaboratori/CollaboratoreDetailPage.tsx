@@ -1,22 +1,28 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, Target } from 'lucide-react'
+import { ArrowLeft, Target, Trash2 } from 'lucide-react'
 
-import { collaboratorApi, objectivePlanApi } from '@/lib/api'
+import { collaboratorApi, collaboratorObjectivePlanApi } from '@/lib/api'
 import type { Database, ObjectiveStatus } from '@/lib/database.types'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DataTable, type Column } from '@/components/ui/data-table'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 type Collaborator = Database['public']['Tables']['Collaborator']['Row'] & {
   Country?: { CountryName: string; RegionId: number; Region?: { RegionName: string } | null } | null
   CollaboratorType?: { CollaboratorTypeName: string } | null
 }
-type ObjectivePlan = Database['public']['Tables']['ObjectivePlan']['Row'] & {
-  Period?: { PeriodDescription: string; PeriodYear: number } | null
+type AssignedObjectivePlan = {
+  CollaboratorObjectivePlanId: number
+  ObjectivePlan: (Database['public']['Tables']['ObjectivePlan']['Row'] & {
+    Period?: { PeriodDescription: string; PeriodYear: number } | null
+  }) | null
 }
+
+const LOCKED_STATUSES: ObjectiveStatus[] = ['CLOSED']
 
 const statusConfig: Record<ObjectiveStatus, { label: string; className: string }> = {
   DRAFT: { label: 'Bozza', className: 'bg-gray-100 text-gray-700 border-gray-200' },
@@ -29,44 +35,75 @@ export function CollaboratoreDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [collaborator, setCollaborator] = useState<Collaborator | null>(null)
-  const [objectives, setObjectives] = useState<ObjectivePlan[]>([])
+  const [objectives, setObjectives] = useState<AssignedObjectivePlan[]>([])
   const [loading, setLoading] = useState(true)
   const [objLoading, setObjLoading] = useState(true)
+  const [removeTarget, setRemoveTarget] = useState<AssignedObjectivePlan | null>(null)
+  const [removing, setRemoving] = useState(false)
+
+  async function loadObjectives(collaboratorId: number) {
+    setObjLoading(true)
+    const { data, error } = await collaboratorObjectivePlanApi.listByCollaborator(collaboratorId)
+    if (error) toast.error(error.message)
+    else setObjectives((data ?? []) as unknown as AssignedObjectivePlan[])
+    setObjLoading(false)
+  }
 
   useEffect(() => {
     async function run() {
       if (!id) return
-      const [{ data, error }, { data: objData, error: objErr }] = await Promise.all([
-        collaboratorApi.get(Number(id)),
-        objectivePlanApi.list({ collaboratorId: Number(id) }),
-      ])
+      const { data, error } = await collaboratorApi.get(Number(id))
       if (error) { toast.error(error.message); navigate('/collaboratori'); return }
       setCollaborator(data as Collaborator)
       setLoading(false)
-      if (objErr) toast.error(objErr.message)
-      else setObjectives((objData ?? []) as ObjectivePlan[])
-      setObjLoading(false)
+      await loadObjectives(Number(id))
     }
     run()
   }, [id, navigate])
 
-  const objectiveColumns: Column<ObjectivePlan>[] = [
-    { header: 'Nome piano', cell: (r) => r.ObjectivePlanName },
-    { header: 'Periodo', cell: (r) => r.Period ? `${r.Period.PeriodDescription} (${r.Period.PeriodYear})` : '—' },
+  async function handleRemove() {
+    if (!removeTarget) return
+    setRemoving(true)
+    const { error } = await collaboratorObjectivePlanApi.remove(removeTarget.CollaboratorObjectivePlanId)
+    setRemoving(false)
+    if (error) { toast.error(error.message); setRemoveTarget(null); return }
+    toast.success('Piano rimosso dal collaboratore')
+    setRemoveTarget(null)
+    if (id) await loadObjectives(Number(id))
+  }
+
+  const objectiveColumns: Column<AssignedObjectivePlan>[] = [
+    { header: 'Nome piano', cell: (r) => r.ObjectivePlan?.ObjectivePlanName ?? '—' },
+    { header: 'Periodo', cell: (r) => r.ObjectivePlan?.Period ? `${r.ObjectivePlan.Period.PeriodDescription} (${r.ObjectivePlan.Period.PeriodYear})` : '—' },
     {
       header: 'Stato',
       cell: (r) => {
-        const cfg = statusConfig[r.ObjectiveStatus]
+        if (!r.ObjectivePlan) return '—'
+        const cfg = statusConfig[r.ObjectivePlan.ObjectiveStatus]
         return <Badge className={cfg.className}>{cfg.label}</Badge>
       },
     },
     {
-      header: '', className: 'w-24 text-right',
-      cell: (r) => (
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/obiettivi/${r.ObjectivePlanId}`}><Target className="h-4 w-4 mr-1" /> Dettaglio</Link>
-        </Button>
-      ),
+      header: '', className: 'w-56 text-right',
+      cell: (r) => {
+        const locked = !r.ObjectivePlan || LOCKED_STATUSES.includes(r.ObjectivePlan.ObjectiveStatus)
+        return (
+          <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to={`/obiettivi/${r.ObjectivePlan?.ObjectivePlanId}`}><Target className="h-4 w-4 mr-1" /> Dettaglio</Link>
+            </Button>
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => setRemoveTarget(r)}
+              disabled={locked}
+              title={locked ? 'Un piano chiuso non può essere rimosso: fa parte dello storico dei premi pagati.' : undefined}
+              className="text-red-400 hover:text-red-600 hover:bg-red-50 disabled:text-gray-300 disabled:hover:bg-transparent"
+            >
+              <Trash2 className="h-4 w-4 mr-1" /> Rimuovi
+            </Button>
+          </div>
+        )
+      },
     },
   ]
 
@@ -146,6 +183,25 @@ export function CollaboratoreDetailPage() {
           />
         </div>
       </div>
+
+      <AlertDialog open={!!removeTarget} onOpenChange={(v) => { if (!v) setRemoveTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rimuovi piano</AlertDialogTitle>
+            <AlertDialogDescription>
+              Rimuovere il piano <strong>{removeTarget?.ObjectivePlan?.ObjectivePlanName}</strong> da <strong>{collaborator.CollaboratorName}</strong>?
+              Il piano non verrà eliminato, resta disponibile per essere assegnato ad altri collaboratori.
+              {removeTarget?.ObjectivePlan?.ObjectiveStatus === 'SIGNED' && (
+                <span className="block mt-2 font-medium text-amber-700">Attenzione: questo piano risulta già firmato dal collaboratore.</span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removing}>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemove} disabled={removing} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{removing ? 'Rimozione...' : 'Rimuovi'}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
