@@ -98,6 +98,7 @@ export const collaboratorApi = {
 
   create: (data: {
     CollaboratorName: string
+    CollaboratorFullName?: string | null
     CollaboratorEmail: string
     CollaboratorTypeId: number
     CountryId: number
@@ -106,6 +107,7 @@ export const collaboratorApi = {
 
   update: (id: number, data: Partial<{
     CollaboratorName: string
+    CollaboratorFullName: string | null
     CollaboratorEmail: string
     CollaboratorTypeId: number
     CountryId: number

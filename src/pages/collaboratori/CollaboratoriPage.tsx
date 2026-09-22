@@ -412,12 +412,13 @@ interface CollaboratorDialogProps {
 function CollaboratorDialog({ open, item, countries, types, onClose, onSuccess }: CollaboratorDialogProps) {
   const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<CollaboratorFormValues>({
     resolver: zodResolver(CollaboratorSchema) as never,
-    defaultValues: { CollaboratorName: '', CollaboratorEmail: '', CollaboratorTypeId: undefined as unknown as number, CountryId: undefined as unknown as number, CollaboratorActive: true },
+    defaultValues: { CollaboratorName: '', CollaboratorFullName: '', CollaboratorEmail: '', CollaboratorTypeId: undefined as unknown as number, CountryId: undefined as unknown as number, CollaboratorActive: true },
   })
 
   useEffect(() => {
     if (open) reset({
       CollaboratorName: item?.CollaboratorName ?? '',
+      CollaboratorFullName: item?.CollaboratorFullName ?? '',
       CollaboratorEmail: item?.CollaboratorEmail ?? '',
       CollaboratorTypeId: item?.CollaboratorTypeId ?? (undefined as unknown as number),
       CountryId: item?.CountryId ?? (undefined as unknown as number),
@@ -427,7 +428,8 @@ function CollaboratorDialog({ open, item, countries, types, onClose, onSuccess }
   }, [open, item, reset])
 
   async function onSubmit(values: CollaboratorFormValues) {
-    const { error } = item ? await collaboratorApi.update(item.CollaboratorId, values) : await collaboratorApi.create(values)
+    const payload = { ...values, CollaboratorFullName: values.CollaboratorFullName?.trim() || null }
+    const { error } = item ? await collaboratorApi.update(item.CollaboratorId, payload) : await collaboratorApi.create(payload)
     if (error) { toast.error(error.message); return }
     toast.success(item ? 'Collaboratore aggiornato' : 'Collaboratore creato')
     onSuccess(); onClose()
@@ -439,9 +441,16 @@ function CollaboratorDialog({ open, item, countries, types, onClose, onSuccess }
         <DialogHeader><DialogTitle>{item ? 'Modifica Collaboratore' : 'Nuovo Collaboratore'}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="CollaboratorName">Nome</Label>
+            <Label htmlFor="CollaboratorName">Nome Qlik</Label>
             <Input id="CollaboratorName" {...register('CollaboratorName')} placeholder="Nome e cognome" />
+            <p className="text-xs text-gray-500">Deve coincidere esattamente con il nome in Qlik. Non modificare dopo la creazione: collega il collaboratore ai report Qlik e alle cartelle Drive.</p>
             {errors.CollaboratorName && <p className="text-sm text-destructive">{errors.CollaboratorName.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="CollaboratorFullName">Nome completo</Label>
+            <Input id="CollaboratorFullName" {...register('CollaboratorFullName')} placeholder="Nome e cognome completo (opzionale)" />
+            <p className="text-xs text-gray-500">Nome stampato sui documenti. Se vuoto, si usa il Nome Qlik.</p>
+            {errors.CollaboratorFullName && <p className="text-sm text-destructive">{errors.CollaboratorFullName.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="CollaboratorEmail">Email</Label>
@@ -562,6 +571,7 @@ export function CollaboratoriPage() {
       const payload = {
         collaboratorId: item.CollaboratorId.toString(),
         collaboratorName: item.CollaboratorName,
+        collaboratorFullName: item.CollaboratorFullName ?? '',
         country: item.Country?.CountryName ?? '',
         collaboratorType: item.CollaboratorType?.CollaboratorTypeName ?? '',
         cuatrimestre: item.CuatrimestreIngresso ?? '',

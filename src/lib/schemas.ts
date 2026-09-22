@@ -15,6 +15,7 @@ export const CollaboratorTypeSchema = z.object({
 
 export const CollaboratorSchema = z.object({
   CollaboratorName: z.string().min(1, 'Nome obbligatorio'),
+  CollaboratorFullName: z.string().trim().optional(),
   CollaboratorEmail: z.string().email('Email non valida'),
   CollaboratorTypeId: z.number({ message: 'Tipo obbligatorio' }).int().positive(),
   CountryId: z.number({ message: 'Paese obbligatorio' }).int().positive(),

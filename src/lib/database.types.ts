@@ -32,6 +32,7 @@ export interface Database {
           CollaboratorTypeId: number
           CountryId: number
           CollaboratorName: string
+          CollaboratorFullName: string | null
           CollaboratorEmail: string
           CollaboratorActive: boolean
           CuatrimestreIngresso: string | null
@@ -42,6 +43,7 @@ export interface Database {
           CollaboratorTypeId: number
           CountryId: number
           CollaboratorName: string
+          CollaboratorFullName?: string | null
           CollaboratorEmail: string
           CollaboratorActive?: boolean
           CuatrimestreIngresso?: string | null
@@ -52,6 +54,7 @@ export interface Database {
           CollaboratorTypeId?: number
           CountryId?: number
           CollaboratorName?: string
+          CollaboratorFullName?: string | null
           CollaboratorEmail?: string
           CollaboratorActive?: boolean
           CuatrimestreIngresso?: string | null
