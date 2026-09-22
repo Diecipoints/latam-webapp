@@ -8,6 +8,7 @@ import { ArrowLeft, Plus, Pencil, Trash2, Image, FileDown } from 'lucide-react'
 import { objectivePlanApi, resultApi } from '@/lib/api'
 import { ResultSchema, type ResultFormValues } from '@/lib/schemas'
 import type { Database, ObjectiveStatus } from '@/lib/database.types'
+import { formatThresholdValue } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -252,8 +253,8 @@ export function ObiettivoDetailPage() {
                 {objective.ObjectiveThreshold.map((t) => (
                   <tr key={t.ObjectiveThresholdId} className="border-t border-gray-100">
                     <td className="px-4 py-2.5">{THRESHOLD_TYPE_LABELS[t.ObjectiveThresholdType]}</td>
-                    <td className="px-4 py-2.5 text-right">{t.ObjectiveThresholdRevenueValue.toLocaleString()} {t.ObjectiveThresholdRevenueCurrency}</td>
-                    <td className="px-4 py-2.5 text-right">{t.ObjectiveThresholdBonusValue.toLocaleString()} {t.ObjectiveThresholdBonusCurrency}</td>
+                    <td className="px-4 py-2.5 text-right">{formatThresholdValue(t.ObjectiveThresholdRevenueValue, t.ObjectiveThresholdRevenueCurrency)}</td>
+                    <td className="px-4 py-2.5 text-right">{formatThresholdValue(t.ObjectiveThresholdBonusValue, t.ObjectiveThresholdBonusCurrency)}</td>
                   </tr>
                 ))}
               </tbody>

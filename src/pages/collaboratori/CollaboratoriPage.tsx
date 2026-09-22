@@ -8,6 +8,7 @@ import { Pencil, Trash2, Plus, Eye, Rocket, Target, Play, FileSearch, ExternalLi
 import { collaboratorApi, countryApi, collaboratorTypeApi, objectivePlanApi, periodApi, collaboratorObjectivePlanApi } from '@/lib/api'
 import { CollaboratorSchema, type CollaboratorFormValues } from '@/lib/schemas'
 import type { Database } from '@/lib/database.types'
+import { formatThresholdValue } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -154,8 +155,8 @@ function PreviewObjectiveDialog({ open, collaborator, onClose }: PreviewObjectiv
                         {a.ObjectivePlan.ObjectiveThreshold.map((t) => (
                           <tr key={t.ObjectiveThresholdId} className="border-t border-gray-100">
                             <td className="px-3 py-2">{THRESHOLD_TYPE_LABELS[t.ObjectiveThresholdType]}</td>
-                            <td className="px-3 py-2 text-right">{t.ObjectiveThresholdRevenueValue.toLocaleString()} {t.ObjectiveThresholdRevenueCurrency}</td>
-                            <td className="px-3 py-2 text-right">{t.ObjectiveThresholdBonusValue.toLocaleString()} {t.ObjectiveThresholdBonusCurrency}</td>
+                            <td className="px-3 py-2 text-right">{formatThresholdValue(t.ObjectiveThresholdRevenueValue, t.ObjectiveThresholdRevenueCurrency)}</td>
+                            <td className="px-3 py-2 text-right">{formatThresholdValue(t.ObjectiveThresholdBonusValue, t.ObjectiveThresholdBonusCurrency)}</td>
                           </tr>
                         ))}
                       </tbody>

@@ -38,15 +38,17 @@ export const ObjectiveTemplateSchema = z.object({
 })
 
 export const ObjectiveStatusEnum = z.enum(['DRAFT', 'ASSIGNED', 'SIGNED', 'CLOSED'])
-export const CurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'])
+export const CurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP', 'UNIDADES'])
+export const RevenueCurrencyEnum = CurrencyEnum
+export const BonusCurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'])
 export const ThresholdTypeEnum = z.enum(['si_alcanza', 'adicionalmente', 'adicionalmente_mayor'])
 export const ObjectivePlanScopeEnum = z.enum(['individual', 'filiale'])
 
 export const ObjectiveThresholdSchema = z.object({
   ObjectiveThresholdRevenueValue: z.number({ message: 'Fatturato soglia obbligatorio' }).positive('Deve essere maggiore di zero'),
-  ObjectiveThresholdRevenueCurrency: CurrencyEnum,
+  ObjectiveThresholdRevenueCurrency: RevenueCurrencyEnum,
   ObjectiveThresholdBonusValue: z.number({ message: 'Premio obbligatorio' }).positive('Deve essere maggiore di zero'),
-  ObjectiveThresholdBonusCurrency: CurrencyEnum,
+  ObjectiveThresholdBonusCurrency: BonusCurrencyEnum,
   ObjectiveThresholdType: ThresholdTypeEnum,
 })
 

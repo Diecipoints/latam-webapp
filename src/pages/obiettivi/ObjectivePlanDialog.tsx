@@ -6,7 +6,7 @@ import { Plus, Trash2 } from 'lucide-react'
 
 import { objectivePlanApi } from '@/lib/api'
 import { ObjectivePlanSchema, type ObjectivePlanFormValues } from '@/lib/schemas'
-import type { Database, ObjectiveStatus, ObjectivePlanScope } from '@/lib/database.types'
+import type { Database, ObjectiveStatus, ObjectivePlanScope, CurrencyCode } from '@/lib/database.types'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +27,8 @@ export const STATUS_LABELS: Record<ObjectiveStatus, string> = {
   DRAFT: 'Bozza', ASSIGNED: 'Assegnato', SIGNED: 'Firmato', CLOSED: 'Chiuso',
 }
 
-const CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'] as const
+const BONUS_CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'] as const
+const REVENUE_CURRENCIES = [...BONUS_CURRENCIES, 'UNIDADES'] as const
 
 export const THRESHOLD_TYPE_LABELS = {
   si_alcanza: 'Si alcanza',
@@ -107,7 +108,7 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
         ObjectiveThresholdRevenueValue: t.ObjectiveThresholdRevenueValue,
         ObjectiveThresholdRevenueCurrency: t.ObjectiveThresholdRevenueCurrency,
         ObjectiveThresholdBonusValue: t.ObjectiveThresholdBonusValue,
-        ObjectiveThresholdBonusCurrency: t.ObjectiveThresholdBonusCurrency,
+        ObjectiveThresholdBonusCurrency: t.ObjectiveThresholdBonusCurrency as Exclude<CurrencyCode, 'UNIDADES'>,
         ObjectiveThresholdType: t.ObjectiveThresholdType,
       }))
       replace(loaded.length ? loaded : Array.from({ length: DEFAULT_THRESHOLD_ROWS }, () => ({ ...emptyThreshold })))
@@ -225,7 +226,7 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
                         <Controller control={control} name={`Thresholds.${i}.ObjectiveThresholdRevenueCurrency`} render={({ field: f }) => (
                           <Select onValueChange={f.onChange} value={f.value}>
                             <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                            <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                            <SelectContent>{REVENUE_CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                           </Select>
                         )} />
                       </div>
@@ -237,7 +238,7 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
                         <Controller control={control} name={`Thresholds.${i}.ObjectiveThresholdBonusCurrency`} render={({ field: f }) => (
                           <Select onValueChange={f.onChange} value={f.value}>
                             <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                            <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                            <SelectContent>{BONUS_CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                           </Select>
                         )} />
                       </div>

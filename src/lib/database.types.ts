@@ -1,5 +1,5 @@
 export type ObjectiveStatus = 'DRAFT' | 'ASSIGNED' | 'SIGNED' | 'CLOSED'
-export type CurrencyCode = 'EUR' | 'COP' | 'MXN' | 'ARS' | 'CLP' | 'DOP'
+export type CurrencyCode = 'EUR' | 'COP' | 'MXN' | 'ARS' | 'CLP' | 'DOP' | 'UNIDADES'
 export type ThresholdType = 'si_alcanza' | 'adicionalmente' | 'adicionalmente_mayor'
 export type ObjectivePlanScope = 'individual' | 'filiale'
 
