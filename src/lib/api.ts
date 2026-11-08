@@ -103,6 +103,8 @@ export const collaboratorApi = {
     CollaboratorTypeId: number
     CountryId: number
     CollaboratorActive?: boolean
+    CollaboratorSalary: number
+    CollaboratorSalaryCurrency: CurrencyCode
   }) => supabase.from('Collaborator').insert({ ...data, CollaboratorActive: data.CollaboratorActive ?? true }).select().single(),
 
   update: (id: number, data: Partial<{
@@ -114,6 +116,8 @@ export const collaboratorApi = {
     CollaboratorActive: boolean
     CuatrimestreIngresso: string | null
     OnboardingDone: boolean
+    CollaboratorSalary: number
+    CollaboratorSalaryCurrency: CurrencyCode
   }>) => supabase.from('Collaborator').update(data).eq('CollaboratorId', id).select().single(),
 
   delete: async (id: number) => {

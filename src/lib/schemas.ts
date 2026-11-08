@@ -13,6 +13,8 @@ export const CollaboratorTypeSchema = z.object({
   CollaboratorTypeName: z.string().min(1, 'Nome obbligatorio'),
 })
 
+export const SalaryCurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'])
+
 export const CollaboratorSchema = z.object({
   CollaboratorName: z.string().min(1, 'Nome obbligatorio'),
   CollaboratorFullName: z.string().trim().optional(),
@@ -22,6 +24,8 @@ export const CollaboratorSchema = z.object({
   CollaboratorActive: z.boolean().default(true),
   CuatrimestreIngresso: z.string().optional(),
   OnboardingDone: z.boolean().optional(),
+  CollaboratorSalary: z.number({ message: 'Stipendio obbligatorio' }).positive('Deve essere maggiore di zero'),
+  CollaboratorSalaryCurrency: SalaryCurrencyEnum,
 })
 
 export const PeriodSchema = z.object({

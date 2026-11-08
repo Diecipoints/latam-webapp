@@ -37,6 +37,8 @@ export interface Database {
           CollaboratorActive: boolean
           CuatrimestreIngresso: string | null
           OnboardingDone: boolean
+          CollaboratorSalary: number
+          CollaboratorSalaryCurrency: CurrencyCode
         }
         Insert: {
           CollaboratorId?: number
@@ -48,6 +50,8 @@ export interface Database {
           CollaboratorActive?: boolean
           CuatrimestreIngresso?: string | null
           OnboardingDone?: boolean
+          CollaboratorSalary: number
+          CollaboratorSalaryCurrency: CurrencyCode
         }
         Update: {
           CollaboratorId?: number
@@ -59,6 +63,8 @@ export interface Database {
           CollaboratorActive?: boolean
           CuatrimestreIngresso?: string | null
           OnboardingDone?: boolean
+          CollaboratorSalary?: number
+          CollaboratorSalaryCurrency?: CurrencyCode
         }
         Relationships: [
           { foreignKeyName: 'Collaborator_CountryId_fkey'; columns: ['CountryId']; referencedRelation: 'Country'; referencedColumns: ['CountryId'] },

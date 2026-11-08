@@ -22,6 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 const N8N_WEBHOOK = 'https://n8n.diecipoints.info/webhook/fafdd9af-c7ad-40e7-8e4f-8c36869e1d4b'
 const N8N_CALCOLO_WEBHOOK = 'https://n8n.diecipoints.info/webhook/b7190b76-ae97-4573-bbd5-e8701165a700'
+const SALARY_CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'] as const
 const CUATRIMESTRI = (year: number) => [
   `1er Cuatrimestre ${year}`,
   `2do Cuatrimestre ${year}`,
@@ -412,7 +413,7 @@ interface CollaboratorDialogProps {
 function CollaboratorDialog({ open, item, countries, types, onClose, onSuccess }: CollaboratorDialogProps) {
   const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<CollaboratorFormValues>({
     resolver: zodResolver(CollaboratorSchema) as never,
-    defaultValues: { CollaboratorName: '', CollaboratorFullName: '', CollaboratorEmail: '', CollaboratorTypeId: undefined as unknown as number, CountryId: undefined as unknown as number, CollaboratorActive: true },
+    defaultValues: { CollaboratorName: '', CollaboratorFullName: '', CollaboratorEmail: '', CollaboratorTypeId: undefined as unknown as number, CountryId: undefined as unknown as number, CollaboratorActive: true, CollaboratorSalary: undefined as unknown as number, CollaboratorSalaryCurrency: undefined as unknown as CollaboratorFormValues['CollaboratorSalaryCurrency'] },
   })
 
   useEffect(() => {
@@ -424,6 +425,8 @@ function CollaboratorDialog({ open, item, countries, types, onClose, onSuccess }
       CountryId: item?.CountryId ?? (undefined as unknown as number),
       CollaboratorActive: item?.CollaboratorActive ?? true,
       CuatrimestreIngresso: item?.CuatrimestreIngresso ?? undefined,
+      CollaboratorSalary: item?.CollaboratorSalary ?? (undefined as unknown as number),
+      CollaboratorSalaryCurrency: (item?.CollaboratorSalaryCurrency as CollaboratorFormValues['CollaboratorSalaryCurrency']) ?? (undefined as unknown as CollaboratorFormValues['CollaboratorSalaryCurrency']),
     })
   }, [open, item, reset])
 
@@ -476,6 +479,23 @@ function CollaboratorDialog({ open, item, countries, types, onClose, onSuccess }
               </Select>
             )} />
             {errors.CollaboratorTypeId && <p className="text-sm text-destructive">{errors.CollaboratorTypeId.message}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="CollaboratorSalary">Stipendio</Label>
+              <Input id="CollaboratorSalary" type="number" step="any" {...register('CollaboratorSalary', { valueAsNumber: true })} placeholder="0" />
+              {errors.CollaboratorSalary && <p className="text-sm text-destructive">{errors.CollaboratorSalary.message}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Valuta stipendio</Label>
+              <Controller control={control} name="CollaboratorSalaryCurrency" render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona valuta" /></SelectTrigger>
+                  <SelectContent>{SALARY_CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              )} />
+              {errors.CollaboratorSalaryCurrency && <p className="text-sm text-destructive">{errors.CollaboratorSalaryCurrency.message}</p>}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>Cuatrimestre Ingresso</Label>
