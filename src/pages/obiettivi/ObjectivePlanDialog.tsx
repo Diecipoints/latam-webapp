@@ -106,7 +106,7 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
       if (error) { toast.error(error.message); return }
       const loaded = ((data as ObjectivePlan | null)?.ObjectiveThreshold ?? []).map((t) => ({
         ObjectiveThresholdRevenueValue: t.ObjectiveThresholdRevenueValue,
-        ObjectiveThresholdRevenueCurrency: t.ObjectiveThresholdRevenueCurrency,
+        ObjectiveThresholdRevenueCurrency: t.ObjectiveThresholdRevenueCurrency as Exclude<CurrencyCode, 'USD'>,
         ObjectiveThresholdBonusValue: t.ObjectiveThresholdBonusValue,
         ObjectiveThresholdBonusCurrency: t.ObjectiveThresholdBonusCurrency as Exclude<CurrencyCode, 'UNIDADES'>,
         ObjectiveThresholdType: t.ObjectiveThresholdType,
