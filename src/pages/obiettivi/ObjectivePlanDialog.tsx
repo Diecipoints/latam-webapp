@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
@@ -29,6 +29,7 @@ export const STATUS_LABELS: Record<ObjectiveStatus, string> = {
 
 const BONUS_CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP', 'USD'] as const
 const REVENUE_CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP', 'UNIDADES'] as const
+const NONE_REGION = '__none__'
 
 export const THRESHOLD_TYPE_LABELS = {
   si_alcanza: 'Si alcanza',
@@ -75,6 +76,7 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
       PeriodId: undefined as unknown as number,
       CountryIds: [],
       ObjectivePlanName: '',
+      ObjectivePlanRegionLabel: '',
       ObjectivePlanSectionTitle: '',
       ObjectivePlanMetricDescription: '',
       ObjectiveStatus: 'DRAFT',
@@ -86,6 +88,13 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
   const { fields, append, remove, replace } = useFieldArray({ control, name: 'Thresholds' })
   const watchedCountryIds = useWatch({ control, name: 'CountryIds' })
 
+  const regionOptions = useMemo(
+    () => Array.from(new Set(
+      countries.map((c) => c.CountryRegion?.trim()).filter((r): r is string => !!r)
+    )).sort(),
+    [countries]
+  )
+
   useEffect(() => {
     if (!open) return
     const source = item ?? duplicateFrom ?? null
@@ -94,6 +103,7 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
       PeriodId: source?.PeriodId ?? (undefined as unknown as number),
       CountryIds: lockedCountryId ? [lockedCountryId] : (source?.ObjectivePlanCountry?.map((c) => c.CountryId) ?? []),
       ObjectivePlanName: source?.ObjectivePlanName ?? '',
+      ObjectivePlanRegionLabel: source?.ObjectivePlanRegionLabel ?? '',
       ObjectivePlanSectionTitle: source?.ObjectivePlanSectionTitle ?? '',
       ObjectivePlanMetricDescription: source?.ObjectivePlanMetricDescription ?? '',
       ObjectiveStatus: item ? item.ObjectiveStatus : 'DRAFT',
@@ -125,12 +135,13 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
   }, [watchedCountryIds, countries, open, setValue])
 
   async function onSubmit(values: ObjectivePlanFormValues) {
+    const payload = { ...values, ObjectivePlanRegionLabel: values.ObjectivePlanRegionLabel?.trim() || null }
     if (item) {
-      const { error } = await objectivePlanApi.update(item.ObjectivePlanId, values)
+      const { error } = await objectivePlanApi.update(item.ObjectivePlanId, payload)
       if (error) { toast.error(error.message); return }
       toast.success('Obiettivo aggiornato')
     } else {
-      const { error, stayedInactive } = await objectivePlanApi.create(values)
+      const { error, stayedInactive } = await objectivePlanApi.create(payload)
       if (error) { toast.error(error.message); return }
       toast.success(stayedInactive
         ? 'Piano creato come bozza — resta INATTIVO: il piano già attivo per questo country non è stato sostituito'
@@ -193,6 +204,20 @@ export function ObjectivePlanDialog({ open, item, periods, countries, onClose, o
             <Label htmlFor="ObjectivePlanName">Nome piano</Label>
             <Input id="ObjectivePlanName" {...register('ObjectivePlanName', { onChange: () => { manuallyEditedRef.current = true } })} />
             {errors.ObjectivePlanName && <p className="text-sm text-destructive">{errors.ObjectivePlanName.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Regione</Label>
+            <Controller control={control} name="ObjectivePlanRegionLabel" render={({ field }) => (
+              <Select onValueChange={(v) => field.onChange(v === NONE_REGION ? '' : v)} value={field.value || NONE_REGION}>
+                <SelectTrigger><SelectValue placeholder="Seleziona regione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE_REGION}>Nessuna regione</SelectItem>
+                  {regionOptions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )} />
+            {errors.ObjectivePlanRegionLabel && <p className="text-sm text-destructive">{errors.ObjectivePlanRegionLabel.message}</p>}
           </div>
 
           <div className="space-y-1.5">

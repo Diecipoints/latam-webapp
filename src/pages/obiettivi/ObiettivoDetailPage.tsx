@@ -238,6 +238,10 @@ export function ObiettivoDetailPage() {
             <p className="font-medium text-gray-900">{objective.Period?.PeriodDescription} ({objective.Period?.PeriodYear})</p>
           </div>
           <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Regione</p>
+            <p className="font-medium text-gray-900">{objective.ObjectivePlanRegionLabel || '—'}</p>
+          </div>
+          <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Stato</p>
             <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[objective.ObjectiveStatus]}`}>
               {STATUS_LABELS[objective.ObjectiveStatus]}

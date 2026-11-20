@@ -13,9 +13,9 @@ export interface Database {
         Relationships: []
       }
       Country: {
-        Row: { CountryId: number; CountryName: string; RegionId: number }
-        Insert: { CountryId?: number; CountryName: string; RegionId: number }
-        Update: { CountryId?: number; CountryName?: string; RegionId?: number }
+        Row: { CountryId: number; CountryName: string; RegionId: number; CountryRegion: string | null }
+        Insert: { CountryId?: number; CountryName: string; RegionId: number; CountryRegion?: string | null }
+        Update: { CountryId?: number; CountryName?: string; RegionId?: number; CountryRegion?: string | null }
         Relationships: [
           { foreignKeyName: 'Country_RegionId_fkey'; columns: ['RegionId']; referencedRelation: 'Region'; referencedColumns: ['RegionId'] }
         ]
@@ -92,6 +92,7 @@ export interface Database {
           ObjectivePlanMetricDescription: string | null
           ObjectiveStatus: ObjectiveStatus
           ObjectivePlanScope: ObjectivePlanScope
+          ObjectivePlanRegionLabel: string | null
         }
         Insert: {
           ObjectivePlanId?: number
@@ -101,6 +102,7 @@ export interface Database {
           ObjectivePlanMetricDescription?: string | null
           ObjectiveStatus: ObjectiveStatus
           ObjectivePlanScope?: ObjectivePlanScope
+          ObjectivePlanRegionLabel?: string | null
         }
         Update: {
           ObjectivePlanId?: number
@@ -110,6 +112,7 @@ export interface Database {
           ObjectivePlanMetricDescription?: string | null
           ObjectiveStatus?: ObjectiveStatus
           ObjectivePlanScope?: ObjectivePlanScope
+          ObjectivePlanRegionLabel?: string | null
         }
         Relationships: [
           { foreignKeyName: 'Objective_PeriodId_fkey'; columns: ['PeriodId']; referencedRelation: 'Period'; referencedColumns: ['PeriodId'] }

@@ -73,7 +73,15 @@ export function ObiettiviPage() {
   }
 
   const columns: Column<ObjectivePlan>[] = [
-    { header: 'Nome piano', cell: (r) => r.ObjectivePlanName },
+    {
+      header: 'Nome piano',
+      cell: (r) => (
+        <div>
+          <div>{r.ObjectivePlanName}</div>
+          {r.ObjectivePlanRegionLabel && <div className="text-xs text-gray-400">{r.ObjectivePlanRegionLabel}</div>}
+        </div>
+      ),
+    },
     { header: 'Periodo', cell: (r) => r.Period ? `${r.Period.PeriodDescription} (${r.Period.PeriodYear})` : '—' },
     { header: 'Assegnati', className: 'text-center', cell: (r) => r.CollaboratorObjectivePlan?.length ?? 0 },
     { header: 'Paesi', cell: (r) => <CountryBadges countries={r.ObjectivePlanCountry ?? []} /> },
