@@ -22,7 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 const N8N_WEBHOOK = 'https://n8n.diecipoints.info/webhook/fafdd9af-c7ad-40e7-8e4f-8c36869e1d4b'
 const N8N_CALCOLO_WEBHOOK = 'https://n8n.diecipoints.info/webhook/b7190b76-ae97-4573-bbd5-e8701165a700'
-const SALARY_CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'] as const
+const SALARY_CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP', 'USD'] as const
 const CUATRIMESTRI = (year: number) => [
   `1er Cuatrimestre ${year}`,
   `2do Cuatrimestre ${year}`,

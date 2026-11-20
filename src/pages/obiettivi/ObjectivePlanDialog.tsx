@@ -27,8 +27,8 @@ export const STATUS_LABELS: Record<ObjectiveStatus, string> = {
   DRAFT: 'Bozza', ASSIGNED: 'Assegnato', SIGNED: 'Firmato', CLOSED: 'Chiuso',
 }
 
-const BONUS_CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'] as const
-const REVENUE_CURRENCIES = [...BONUS_CURRENCIES, 'UNIDADES'] as const
+const BONUS_CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP', 'USD'] as const
+const REVENUE_CURRENCIES = ['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP', 'UNIDADES'] as const
 
 export const THRESHOLD_TYPE_LABELS = {
   si_alcanza: 'Si alcanza',

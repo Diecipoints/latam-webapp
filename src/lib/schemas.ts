@@ -13,7 +13,7 @@ export const CollaboratorTypeSchema = z.object({
   CollaboratorTypeName: z.string().min(1, 'Nome obbligatorio'),
 })
 
-export const SalaryCurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'])
+export const SalaryCurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP', 'USD'])
 
 export const CollaboratorSchema = z.object({
   CollaboratorName: z.string().min(1, 'Nome obbligatorio'),
@@ -45,7 +45,7 @@ export const ObjectiveTemplateSchema = z.object({
 export const ObjectiveStatusEnum = z.enum(['DRAFT', 'ASSIGNED', 'SIGNED', 'CLOSED'])
 export const CurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP', 'UNIDADES'])
 export const RevenueCurrencyEnum = CurrencyEnum
-export const BonusCurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP'])
+export const BonusCurrencyEnum = z.enum(['EUR', 'COP', 'MXN', 'ARS', 'CLP', 'DOP', 'USD'])
 export const ThresholdTypeEnum = z.enum(['si_alcanza', 'adicionalmente', 'adicionalmente_mayor'])
 export const ObjectivePlanScopeEnum = z.enum(['individual', 'filiale'])
 
